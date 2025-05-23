@@ -39,7 +39,9 @@ const eventsSchema: RouteShorthandOptions = {
           properties: {
             label: { type: "string" },
             amount: { type: "string" },
+            usgAmount: { type: "string" },
             date: { type: "string", format: "date-time" },
+            market: { type: "string" },
           },
         },
       },
@@ -60,7 +62,9 @@ fastify.get<EventsRoute>(
     const { account } = request.params;
     try {
       const rawEvents = await getEventsByAccount(fastify, account);
+      console.log("rawEvents : ", rawEvents);
       const transformedEvents = transformEvents(rawEvents);
+      console.log("transformedEvents : ", transformedEvents);
       fastify.log.info(
         `Query returned ${
           transformedEvents.length
