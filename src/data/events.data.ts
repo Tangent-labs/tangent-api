@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+import { isAddress } from "viem";
 
 export interface RawEvent {
   label: string;
@@ -14,11 +15,8 @@ export async function getEventsByAccount(
   market: string
 ): Promise<RawEvent[]> {
   try {
-    if (
-      !/^(0x)?[0-9a-fA-F]{40}$/.test(account) ||
-      !/^(0x)?[0-9a-fA-F]{40}$/.test(market)
-    ) {
-      throw new Error("Invalid account or market address");
+    if (!isAddress(account) || !isAddress(market)) {
+      throw new Error("Bad Request");
     }
 
     const { rows } = await fastify.pg.query<RawEvent>(
