@@ -6,7 +6,7 @@ import { transformEvents, TransformedEvent } from "./services/events.service";
 
 // Interface for the route parameters and response
 interface EventsRoute {
-  Params: { account: string };
+  Params: { account: string; market: string };
   Reply: TransformedEvent[] | { error: string };
 }
 
@@ -38,12 +38,10 @@ const eventsSchema: RouteShorthandOptions = {
           type: "object",
           properties: {
             label: { type: "string" },
-            amount: { type: "string" },
+            collatAmount: { type: "string" },
             usgAmount: { type: "string" },
             date: { type: "string", format: "date-time" },
-            market: { type: "string" },
             txHash: { type: "string" },
-            
           },
         },
       },
@@ -58,12 +56,12 @@ const eventsSchema: RouteShorthandOptions = {
 };
 
 fastify.get<EventsRoute>(
-  "/events/:account",
+  "/events/:account/:market",
   eventsSchema,
   async (request, reply) => {
-    const { account } = request.params;
+    const { account, market } = request.params;
     try {
-      const rawEvents = await getEventsByAccount(fastify, account);
+      const rawEvents = await getEventsByAccount(fastify, account, market);
       const transformedEvents = transformEvents(rawEvents);
       fastify.log.info(
         `Query returned ${
