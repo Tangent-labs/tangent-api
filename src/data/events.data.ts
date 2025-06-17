@@ -67,6 +67,12 @@ export async function getEventsByAccount(
       UNION ALL
       SELECT 'market_zap_leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
       FROM market_zap_leverage
+      UNION ALL
+      SELECT 'market_liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+      FROM market_liquidate
+      UNION ALL
+      SELECT 'market_self_liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+      FROM market_self_liquidate
       WHERE LOWER(account) = LOWER($1) AND LOWER(market) = LOWER($2)
       ORDER BY date DESC
       `,
