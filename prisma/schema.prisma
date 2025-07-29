@@ -1,0 +1,47 @@
+generator prisma {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["events", "global", "points"]
+}
+
+model user {
+  id             String           @id
+  address        String           @unique
+  onboarded      Boolean          @default(false)
+  created_at     DateTime         @default(now())
+  code           String?          @unique
+  referral_count Int              @default(0)
+  used_codes     referral_usage[]
+  referral_code  referral_code[]
+
+  @@schema("global")
+}
+
+model referral_code {
+  id         Int              @id @default(autoincrement())
+  code       String           @unique
+  user_id    String
+  user       user             @relation(fields: [user_id], references: [id])
+  created_at DateTime         @default(now())
+  expires_at DateTime?
+  used_by    referral_usage[]
+
+  @@schema("global")
+}
+
+model referral_usage {
+  referral_code_id Int           @map("referralCodeId")
+  user_id          String
+  used_at          DateTime      @default(now())
+  referral_code    referral_code @relation(fields: [referral_code_id], references: [id])
+  user             user          @relation(fields: [user_id], references: [id])
+
+  @@id([referral_code_id, user_id])
+  @@unique([referral_code_id, user_id])
+  @@schema("global")
+}

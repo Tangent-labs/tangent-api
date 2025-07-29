@@ -1,13 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { isAddress } from "viem";
-
-export interface RawEvent {
-  label: string;
-  collat_amount: string;
-  usg_amount: string;
-  date: string;
-  tx_hash: string;
-}
+import { RawEvent } from "../types";
 
 export async function getEventsByAccount(
   fastify: FastifyInstance,

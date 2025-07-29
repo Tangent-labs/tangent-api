@@ -1,91 +1,49 @@
-import Fastify, { FastifyInstance, RouteShorthandOptions } from "fastify";
+import Fastify, { FastifyInstance } from "fastify";
 import Postgres from "@fastify/postgres";
+import fastifyRateLimit from "@fastify/rate-limit";
+import fastifyCors from "@fastify/cors";
 import dotenv from "dotenv";
-import { getEventsByAccount } from "./data/events.data";
-import { transformEvents, TransformedEvent } from "./services/events.service";
+import prismaPlugin from "./plugins/prisma";
+import { registerReferralRoute } from "./routes/referral.route";
+import { registerEventsRoute } from "./routes/events.route";
 
-// Interface for the route parameters and response
-interface EventsRoute {
-  Params: { account: string; market: string };
-  Reply: TransformedEvent[] | { error: string };
-}
-
-// Initialize dotenv to load environment variables
 dotenv.config();
 
-// Create Fastify instance with logger
 const fastify: FastifyInstance = Fastify({ logger: true });
 
-// Register the PostgreSQL plugin
+// Register plugins
+fastify.register(prismaPlugin);
 fastify.register(Postgres, {
   connectionString: process.env.DATABASE_URL,
 });
+fastify.register(fastifyCors, {
+  origin: true,
+});
+fastify.register(fastifyRateLimit, {
+  max: 100,
+  timeWindow: "15 minutes",
+});
 
-// Route to get all events for a user
-const eventsSchema: RouteShorthandOptions = {
-  schema: {
-    params: {
-      type: "object",
-      properties: {
-        account: { type: "string" },
-      },
-      required: ["account"],
-    },
-    response: {
-      200: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            label: { type: "string" },
-            collatAmount: { type: "string" },
-            usgAmount: { type: "string" },
-            date: { type: "string", format: "date-time" },
-            txHash: { type: "string" },
-          },
-        },
-      },
-      500: {
-        type: "object",
-        properties: {
-          error: { type: "string" },
-        },
-      },
-    },
-  },
-};
+// Register routes
+fastify.register(registerReferralRoute);
+fastify.register(registerEventsRoute);
 
-fastify.get<EventsRoute>(
-  "/events/:account/:market",
-  eventsSchema,
-  async (request, reply) => {
-    const { account, market } = request.params;
-    try {
-      const rawEvents = await getEventsByAccount(fastify, account, market);
-      const transformedEvents = transformEvents(rawEvents);
-      fastify.log.info(
-        `Query returned ${
-          transformedEvents.length
-        } rows for account ${account}: ${JSON.stringify(transformedEvents)}`
-      );
-      return transformedEvents;
-    } catch (err) {
-      fastify.log.error(err);
-      return reply.status(500).send({ error: "Failed to fetch events" });
-    }
-  }
-);
-
-// Start the server
-fastify.listen({ port: 3100, host: "127.0.0.1" }, (err) => {
-  if (err) {
+// Graceful shutdown
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3100, host: "127.0.0.1" });
+    fastify.log.info(`Server listening on http://127.0.0.1:3100`);
+  } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
-  const address = fastify.server.address();
-  const addressStr =
-    typeof address === "string"
-      ? address
-      : `http://${address?.address}:${address?.port}`;
-  fastify.log.info(`Server listening on ${addressStr}`);
-});
+};
+
+const stop = async () => {
+  await fastify.close();
+};
+
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+
+start();
