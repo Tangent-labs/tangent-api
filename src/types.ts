@@ -5,18 +5,18 @@ export interface ReferralData {
   expires_at?: Date | null;
 }
 
+export interface UserData {
+  id: bigint;
+  address: string;
+  onboarded: boolean;
+  code: string | null;
+}
+
 export interface UserStatus {
+  hasGeneratedCode: boolean;
   hasUsedCode: boolean;
   referralCode: string | null;
   friends: number;
-}
-
-export interface UserData {
-  id: string;
-  address: string;
-  onboarded: boolean;
-  referral_code?: string | null;
-  referral_count: number;
 }
 
 export interface EventsRoute {

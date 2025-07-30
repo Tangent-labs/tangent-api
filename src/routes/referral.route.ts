@@ -5,8 +5,8 @@ import {
   getReferralStatus,
 } from "../services/referral.service";
 import {
-  generateReferralSchema,
   referralSchema,
+  generateReferralSchema,
   referralStatusSchema,
 } from "./shemas";
 import { ReferralInput } from "../types";
@@ -28,7 +28,6 @@ interface ReferralStatusRoute {
 }
 
 export async function registerReferralRoute(fastify: FastifyInstance) {
-  // POST /referral for validating and processing referral codes
   fastify.post<ReferralRoute>(
     "/referral",
     referralSchema,
@@ -39,7 +38,7 @@ export async function registerReferralRoute(fastify: FastifyInstance) {
           request.body,
           fastify.log
         );
-        fastify.log.info("RESULT of verifyAndProcessReferral:", result);
+
         return reply.status(200).send(result);
       } catch (err: any) {
         request.log.error("Error processing referral:", err);
@@ -54,7 +53,6 @@ export async function registerReferralRoute(fastify: FastifyInstance) {
     }
   );
 
-  // POST /referral/generate for generating a new referral code
   fastify.post<GenerateReferralRoute>(
     "/referral/generate",
     generateReferralSchema,
@@ -80,7 +78,6 @@ export async function registerReferralRoute(fastify: FastifyInstance) {
     }
   );
 
-  // GET /referral/status for checking user referral status
   fastify.get<ReferralStatusRoute>(
     "/referral/status",
     referralStatusSchema,
@@ -92,9 +89,6 @@ export async function registerReferralRoute(fastify: FastifyInstance) {
           account,
           fastify.log
         );
-
-        console.log("RESULT : ", result);
-
         return reply.status(200).send(result);
       } catch (err: any) {
         request.log.error("Error fetching referral status:", err);

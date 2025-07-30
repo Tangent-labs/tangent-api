@@ -2,10 +2,9 @@ import { ethers } from "ethers";
 import { PrismaClient } from "@prisma/client";
 import {
   getReferralByCode,
-  getUserByAddress,
   processReferral,
   generateReferralCode,
-  hasUserUsedCode,
+  isUserOnboarded,
   getUserStatus,
 } from "../data/referral.data";
 import { ReferralInput, UserStatus } from "../types";
@@ -17,22 +16,13 @@ export async function verifyAndProcessReferral(
 ): Promise<{ message: string }> {
   const { referralCode, signature, account } = input;
 
-  const referral = await getReferralByCode(prisma, referralCode);
-  if (!referral) {
+  const referrer = await getReferralByCode(prisma, referralCode);
+  if (!referrer) {
     throw new Error("Invalid referral code");
   }
 
-  if (referral.expires_at && new Date() > referral.expires_at) {
-    throw new Error("Referral code has expired");
-  }
-
-  const user = await getUserByAddress(prisma, account);
-  if (user?.onboarded) {
-    throw new Error("User already onboarded");
-  }
-
-  if (await hasUserUsedCode(prisma, referralCode, account.toLowerCase())) {
-    throw new Error("User has already used this referral code");
+  if (await isUserOnboarded(prisma, account.toLowerCase())) {
+    throw new Error("User has already used a referral code");
   }
 
   const message = `I am using the following referral code ${referralCode}`;

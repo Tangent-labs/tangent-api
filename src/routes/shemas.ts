@@ -118,9 +118,10 @@ export const referralStatusSchema: RouteShorthandOptions = {
       200: {
         type: "object",
         properties: {
+          hasGeneratedCode: { type: "boolean" },
           hasUsedCode: { type: "boolean" },
           referralCode: { type: ["string", "null"] },
-          friends: { type: "number" },
+          friends: { type: "integer" },
         },
       },
       400: {
