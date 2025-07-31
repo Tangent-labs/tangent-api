@@ -411,24 +411,24 @@ model tracked_erc20 {
 }
 
 model user {
-  id              BigInt            @id(map: "user_pkey") @default(autoincrement())
-  address         String            @unique
-  onboarded       Boolean           @default(false)
-  code            String?           @unique
-  referral_usages referral_usages[] @relation("UsedBy")
-  referred_users  referral_usages[] @relation("ReferredBy")
+  id        BigInt            @id(map: "user_pkey") @default(autoincrement())
+  address   String            @unique
+  onboarded Boolean           @default(false)
+  code      String?           @unique
+  godsons   referral_usages[] @relation("GodfatherRelation")
+  godfather referral_usages?  @relation("GodsonRelation")
 
   @@schema("global")
 }
 
 model referral_usages {
-  id          BigInt   @id(map: "referral_usages_pkey") @default(autoincrement())
-  referrer_id BigInt
-  address     String
-  used_at     DateTime @default(now())
-  user        user     @relation(fields: [address], references: [address], name: "UsedBy")
-  referrer    user     @relation(fields: [referrer_id], references: [id], name: "ReferredBy")
+  id           BigInt   @id(map: "referral_usages_pkey") @default(autoincrement())
+  godfather_id BigInt
+  godson_id    BigInt
+  used_at      DateTime @default(now())
+  godfather    user     @relation(fields: [godfather_id], references: [id], name: "GodfatherRelation")
+  godson       user     @relation(fields: [godson_id], references: [id], name: "GodsonRelation")
 
-  @@unique([address])
+  @@unique(godson_id)
   @@schema("global")
 }

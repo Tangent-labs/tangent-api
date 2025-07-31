@@ -177,11 +177,6 @@ async function createBlankUser() {
       },
     });
 
-    // Delete any referral_usages records for this user
-    await prisma.referral_usages.deleteMany({
-      where: { address: userAddress.toLowerCase() },
-    });
-
     console.log(`Successfully created/reset blank user: ${userAddress}`);
   } catch (err) {
     console.error("Error creating blank user:", err);
@@ -191,14 +186,12 @@ async function createBlankUser() {
   }
 }
 
-// Run the script (uncomment to use)
-// populateReferralData().catch((err) => {
-//   console.error("Script failed:", err);
-//   process.exit(1);
-// });
-
 // Run createBlankUser by default
 createBlankUser().catch((err) => {
   console.error("Script failed:", err);
-  process.exit(1);
+
+  populateReferralData().catch((err) => {
+    console.error("Script failed:", err);
+    process.exit(1);
+  });
 });

@@ -9,7 +9,7 @@ import {
 } from "../data/referral.data";
 import { ReferralInput, UserStatus } from "../types";
 
-export async function verifyAndProcessReferral(
+export async function verifyAndCreateReferralRelationship(
   prisma: PrismaClient,
   input: ReferralInput,
   logger: any
@@ -46,15 +46,19 @@ export async function verifyAndProcessReferral(
   return { message: "Referral successfully processed" };
 }
 
+const checkAccount = (account: string) => {
+  if (!ethers.isAddress(account)) {
+    throw new Error("Invalid account address");
+  }
+};
+
 export async function generateNewReferralCode(
   prisma: PrismaClient,
   account: string,
   logger: any
 ): Promise<{ message: string }> {
   try {
-    if (!/^0x[a-fA-F0-9]{40}$/.test(account)) {
-      throw new Error("Invalid account address");
-    }
+    checkAccount(account);
 
     const code = await generateReferralCode(prisma, account.toLowerCase());
     logger.info(`Generated referral code ${code} for account ${account}`);
@@ -71,9 +75,7 @@ export async function getReferralStatus(
   logger: any
 ): Promise<UserStatus> {
   try {
-    if (!/^0x[a-fA-F0-9]{40}$/.test(account)) {
-      throw new Error("Invalid account address");
-    }
+    checkAccount(account);
 
     const status = await getUserStatus(prisma, account);
     logger.info(`Fetched referral status for account ${account}:`, status);

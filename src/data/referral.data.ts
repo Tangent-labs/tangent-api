@@ -43,7 +43,7 @@ export async function getUserStatus(
         id: true,
         code: true,
         onboarded: true,
-        referred_users: true,
+        godsons: true,
       },
     });
 
@@ -55,7 +55,7 @@ export async function getUserStatus(
       hasGeneratedCode: !!user.code,
       hasUsedCode: user.onboarded,
       referralCode: user.code,
-      friends: user.referred_users.length,
+      friends: user.godsons.length,
     };
 
     return status;
@@ -101,7 +101,7 @@ export async function processReferral(
 
     // Check if the user has already used a code
     const existingUsage = await prisma.referral_usages.findFirst({
-      where: { address: address.toLowerCase() },
+      where: { godfather_id: referrer?.id },
     });
     if (existingUsage) {
       throw new Error("User has already used a referral code");
@@ -111,9 +111,9 @@ export async function processReferral(
       where: { address: address.toLowerCase() },
       update: {
         onboarded: true,
-        referral_usages: {
+        godfather: {
           create: {
-            referrer_id: referrer.id,
+            godfather_id: referrer.id,
             used_at: new Date(),
           },
         },
@@ -121,9 +121,9 @@ export async function processReferral(
       create: {
         address: address.toLowerCase(),
         onboarded: true,
-        referral_usages: {
+        godfather: {
           create: {
-            referrer_id: referrer.id,
+            godfather_id: referrer.id,
             used_at: new Date(),
           },
         },

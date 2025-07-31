@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import {
-  verifyAndProcessReferral,
+  verifyAndCreateReferralRelationship,
   generateNewReferralCode,
   getReferralStatus,
 } from "../services/referral.service";
@@ -33,7 +33,7 @@ export async function registerReferralRoute(fastify: FastifyInstance) {
     referralSchema,
     async (request: FastifyRequest<ReferralRoute>, reply) => {
       try {
-        const result = await verifyAndProcessReferral(
+        const result = await verifyAndCreateReferralRelationship(
           fastify.prisma,
           request.body,
           fastify.log
