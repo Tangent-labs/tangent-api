@@ -1,4 +1,4 @@
-import { RouteShorthandOptions } from "fastify";
+import { RouteShorthandOptions } from "fastify"
 
 export const eventsSchema: RouteShorthandOptions = {
   schema: {
@@ -32,7 +32,34 @@ export const eventsSchema: RouteShorthandOptions = {
       },
     },
   },
-};
+}
+
+export const getMarketHistoricalDataSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      properties: {
+        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        dateFrom: { type: "Date" },
+      },
+      required: ["marketAddress", "dateFrom"],
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
 
 export const referralSchema: RouteShorthandOptions = {
   schema: {
@@ -71,7 +98,7 @@ export const referralSchema: RouteShorthandOptions = {
       },
     },
   },
-};
+}
 
 export const generateReferralSchema: RouteShorthandOptions = {
   schema: {
@@ -103,7 +130,7 @@ export const generateReferralSchema: RouteShorthandOptions = {
       },
     },
   },
-};
+}
 
 export const referralStatusSchema: RouteShorthandOptions = {
   schema: {
@@ -144,4 +171,4 @@ export const referralStatusSchema: RouteShorthandOptions = {
       },
     },
   },
-};
+}

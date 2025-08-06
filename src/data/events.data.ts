@@ -1,35 +1,37 @@
-import { FastifyInstance } from "fastify";
-import { isAddress } from "viem";
-import { RawEvent, TotalBorrowPoint } from "../types";
-import { PrismaClient } from "@prisma/client";
+import { FastifyInstance } from "fastify"
+import { isAddress } from "viem"
+import { RawEvent, TotalBorrowPoint } from "../types"
+import { AddressLike } from "ethers"
+export class EventRepository {
+  fastify: FastifyInstance
 
-export async function getEventsByAccount(
-  fastify: FastifyInstance,
-  account: string,
-  market: string
-): Promise<RawEvent[]> {
-  try {
-    if (!isAddress(account) || !isAddress(market)) {
-      throw new Error("Invalid account or market address");
-    }
+  constructor(fastify: FastifyInstance) {
+    this.fastify = fastify
+  }
 
-    const marketResult = await fastify.pg.query<{ id: string }>(
-      `
+  async getEventsByAccount(account: string, market: string): Promise<RawEvent[]> {
+    try {
+      if (!isAddress(account) || !isAddress(market)) {
+        throw new Error("Invalid account or market address")
+      }
+
+      const marketResult = await this.fastify.pg.query<{ id: string }>(
+        `
       SELECT id
       FROM events.usg_markets
       WHERE LOWER(contract_address) = LOWER($1)
       `,
-      [market]
-    );
+        [market]
+      )
 
-    if (marketResult.rows.length === 0) {
-      throw new Error(`No market found for contract_address: ${market}`);
-    }
+      if (marketResult.rows.length === 0) {
+        throw new Error(`No market found for contract_address: ${market}`)
+      }
 
-    const market_id = marketResult.rows[0].id;
+      const market_id = marketResult.rows[0].id
 
-    const { rows } = await fastify.pg.query<RawEvent>(
-      `
+      const { rows } = await this.fastify.pg.query<RawEvent>(
+        `
       SELECT 'borrow' AS label, '0' AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
       FROM events.borrow
       WHERE LOWER(account) = LOWER($1) AND market_id = $2
@@ -87,113 +89,56 @@ export async function getEventsByAccount(
       WHERE LOWER(account) = LOWER($1) AND market_id = $2
       ORDER BY date DESC
       `,
-      [account, market_id]
-    );
+        [account, market_id]
+      )
 
-    if (rows.length === 0) {
-      fastify.log.warn(
-        `No events found for account: ${account}, market: ${market} (market_id: ${market_id})`
-      );
+      if (rows.length === 0) {
+        this.fastify.log.warn(`No events found for account: ${account}, market: ${market} (market_id: ${market_id})`)
+      }
+
+      return rows
+    } catch (err: any) {
+      this.fastify.log.error("Query error:", {
+        message: err.message,
+        stack: err.stack,
+        code: err.code,
+        detail: err.detail,
+        hint: err.hint,
+      })
+      throw new Error(`Database query failed: ${err.message}`)
     }
-
-    return rows;
-  } catch (err: any) {
-    fastify.log.error("Query error:", {
-      message: err.message,
-      stack: err.stack,
-      code: err.code,
-      detail: err.detail,
-      hint: err.hint,
-    });
-    throw new Error(`Database query failed: ${err.message}`);
-  }
-}
-
-/**
- *
- * @param prisma help  the query
- * @param range range provided by the frontend
- * @param maxPoints max number of points displayed in the graph
- * @returns
- */
-export async function getTotalBorrow(
-  prisma: PrismaClient,
-  range: string,
-  maxPoints: number = 100
-): Promise<{ latestTotalDebt: string; data: TotalBorrowPoint[] }> {
-  const now = new Date();
-  let since: Date;
-  let interval: "hour" | "day" | "week" | "month";
-
-  switch (range) {
-    case "1w":
-      interval = "hour";
-      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case "1m":
-      interval = "day";
-      since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case "1y":
-      interval = "week";
-      since = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      break;
-    case "all":
-    default:
-      interval = "month";
-      since = new Date("2025-01-01T00:00:00.000Z");
   }
 
-  const chartData = await prisma.$queryRawUnsafe<
-    { timestamp: Date; total: number }[]
-  >(
-    `WITH bucketed AS (
-      SELECT *,
-            DATE_TRUNC('${interval}', timestamp) AS bucket,
-            ROW_NUMBER() OVER (PARTITION BY DATE_TRUNC('${interval}', timestamp), market_id ORDER BY timestamp DESC) AS rn
-      FROM global.market_global_data
-      WHERE timestamp >= $1
-    ),
-    latest_per_market AS (
-      SELECT bucket, total_debt
-      FROM bucketed
-      WHERE rn = 1
-    ),
-    grouped AS (
-      SELECT bucket, SUM(total_debt) AS total
-      FROM latest_per_market
-      GROUP BY bucket
-    ),
+  /**
+   *
+   * @param prisma help  the query
+   * @param range range provided by the frontend
+   * @param maxPoints max number of points displayed in the graph
+   * @returns
+   */
+  async getHistoricalData(marketAddress: AddressLike, minDate: Date, rowAmounts: number = 100) {
+    const query = `WITH filtered_data AS (
+    SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
+    FROM global.market_global_data as mgd
+    JOIN events.usg_markets as um ON mgd.market_id = um.id
+    WHERE mgd.timestamp > '${minDate}'
+    AND um.contract_address = '${marketAddress}'
+),
     row_ratio AS (
-      SELECT GREATEST(COUNT(*) / ${maxPoints}, 1) AS ratio FROM grouped
-    ),
-    numbered AS (
-      SELECT bucket, total,
-            ROW_NUMBER() OVER (ORDER BY bucket ASC) AS rn
-      FROM grouped
+        SELECT CEIL(COUNT(*) / ${rowAmounts}) AS ratio 
+        FROM filtered_data
     )
-    SELECT bucket AS timestamp, total
-    FROM numbered, row_ratio
-    WHERE (rn - 1) % row_ratio.ratio = 0
-    ORDER BY timestamp ASC`,
-    since
-  );
+    SELECT timestamp, tvl_usd, total_debt, ir_apy, apr_current
+    FROM (
+        SELECT id, timestamp, tvl_usd, total_debt, ir_apy, apr_current,
+              ROW_NUMBER() OVER (ORDER BY id DESC) AS rn
+        FROM filtered_data
+    ) x
+      CROSS JOIN row_ratio
+    ORDER BY id ASC;`
 
-  const data: TotalBorrowPoint[] = chartData.map((row) => ({
-    timestamp: row.timestamp,
-    value: Math.round(row.total).toString(),
-  }));
+    const chartData = await this.fastify.prisma.$queryRawUnsafe<any[]>(query, marketAddress, minDate, rowAmounts)
 
-  const [latest] = await prisma.$queryRaw<{ timestamp: Date; total: number }[]>`
-    SELECT
-      MAX("timestamp") AS timestamp,
-      SUM("total_debt") AS total
-    FROM global.market_global_data
-    WHERE timestamp = (SELECT MAX("timestamp") FROM global.market_global_data)
-  `;
-
-  return {
-    latestTotalDebt: Math.round(latest.total).toString(),
-    data,
-  };
+    return chartData
+  }
 }

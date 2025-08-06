@@ -54,6 +54,14 @@ model market_global_data {
   ir_apy        Float
   reward_cut    Float
 
+
+  // Index on id for ORDER BY and ROW_NUMBER in the getHistoricalData call
+  @@index([id])
+  // Index on timestamp for WHERE timestamp > ... in the getHistoricalData call
+  @@index([timestamp])
+  // Index on market_id for JOIN in the getHistoricalData call
+  @@index([market_id])
+
   @@schema("global")
 }
 
@@ -81,7 +89,12 @@ model usg_markets {
   self_liquidate         self_liquidate[]
   seize_collateral       seize_collateral[]
 
-  @@index([contract_address], map: "markets_creations_address_idx")
+
+  // Index on contract_address for WHERE contract_address = ... in the getHistoricalData call
+  @@index([contract_address])
+  // Index on market_id for JOIN in the getHistoricalData call
+  @@index([id])
+
   @@schema("events")
 }
 

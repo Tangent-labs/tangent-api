@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
-import { RawEvent, TotalBorrowPoint, TransformedEvent } from "../types";
-import { getTotalBorrow } from "../data/events.data";
+import { RawEvent, TotalBorrowPoint, TransformedEvent } from "../types"
+import { EventRepository } from "../data/events.data"
+import { AddressLike } from "ethers"
 
 export function transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
   return rawEvents.map((event) => ({
@@ -9,20 +9,16 @@ export function transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
     usgAmount: event.usg_amount,
     date: new Date(event.date).toISOString(),
     txHash: event.tx_hash,
-  }));
+  }))
 }
 
-export async function getTotalBorrowOverTime(
-  prisma: PrismaClient,
-  logger: any,
-  range: string
-): Promise<{ latestTotalDebt: string; data: TotalBorrowPoint[] }> {
+export async function getMarketHistoricalData(eventRepository: EventRepository, market: AddressLike, minDate: Date) {
   try {
-    const result = await getTotalBorrow(prisma, range);
-    logger.info(`Fetched total borrow data for range ${range}`);
-    return result;
+    const result = await eventRepository.getHistoricalData(market, minDate)
+
+    return result
   } catch (err) {
-    logger.error("Error in borrow service:", err);
-    throw err;
+    console.log(err)
+    throw err
   }
 }
