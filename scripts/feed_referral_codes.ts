@@ -132,25 +132,6 @@ async function populateReferralData() {
         },
       });
     }
-
-    console.log("Successfully populated tables:");
-    console.log(
-      "Unused codes:",
-      unusedUsers.map((u) => u.code)
-    );
-    console.log(
-      "Used codes:",
-      usedCodeUsers.map((u) => u.code)
-    );
-    console.log(
-      "Total users created:",
-      unusedUsers.length + usedCodeUsers.length + usingUsers.length + 1
-    );
-    console.log("Total referral_usages records:", referralUsages.length);
-    console.log(
-      "Non-existent user address for testing:",
-      nonExistentUser.address
-    );
   } catch (err) {
     console.error("Error populating tables:", err);
     throw err;
@@ -176,8 +157,6 @@ async function createBlankUser() {
         onboarded: false,
       },
     });
-
-    console.log(`Successfully created/reset blank user: ${userAddress}`);
   } catch (err) {
     console.error("Error creating blank user:", err);
     throw err;

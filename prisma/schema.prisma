@@ -349,8 +349,8 @@ model seize_collateral {
   @@schema("events")
 }
 
-model transfert_events {
-  id            BigInt        @id(map: "transfert_events_pkey") @default(autoincrement())
+model transfer_events {
+  id            BigInt        @id(map: "transfer_events_pkey") @default(autoincrement())
   token         tracked_erc20 @relation(fields: [token_address], references: [address])
   token_address String        @db.VarChar
   from          String        @db.VarChar
@@ -400,12 +400,12 @@ model last_processed_block {
 }
 
 model tracked_erc20 {
-  id               BigInt             @id(map: "tracked_erc20_pkey") @default(autoincrement())
-  address          String             @unique
-  name             String?
-  symbol           String?
-  task             task[]
-  transfert_events transfert_events[]
+  id              BigInt            @id(map: "tracked_erc20_pkey") @default(autoincrement())
+  address         String            @unique
+  name            String?
+  symbol          String?
+  task            task[]
+  transfer_events transfer_events[]
 
   @@schema("points")
 }

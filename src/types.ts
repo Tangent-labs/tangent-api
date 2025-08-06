@@ -32,8 +32,6 @@ export interface ReferralInput {
   account: string;
 }
 
-//
-
 export interface RawEvent {
   label: string;
   collat_amount: string;
@@ -42,11 +40,15 @@ export interface RawEvent {
   tx_hash: string;
 }
 
-// Interface for the transformed event for the frontend
 export interface TransformedEvent {
   label: string;
   collatAmount: string;
   usgAmount: string;
   date: string;
   txHash: string;
+}
+
+export interface TotalBorrowPoint {
+  timestamp: Date;
+  value: string;
 }
