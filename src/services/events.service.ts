@@ -1,13 +1,4 @@
-import { RawEvent } from "../data/events.data";
-
-// Interface for the transformed event for the frontend
-export interface TransformedEvent {
-  label: string;
-  collatAmount: string;
-  usgAmount: string;
-  date: string;
-  txHash: string;
-}
+import { RawEvent, TransformedEvent } from "../types";
 
 // Transform raw events for the frontend
 export function transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
