@@ -29,7 +29,7 @@ export interface EventsRoute {
 export interface GetHistoricalMarketDataParamsRoute {
   Params: {
     marketAddress: string
-    dateFrom: Date
+    dateFrom: string
   }
 }
 

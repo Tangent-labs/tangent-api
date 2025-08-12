@@ -1,7 +1,7 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify"
+import { FastifyInstance, FastifyRequest } from "fastify"
 import { EventRepository } from "../data/events.data"
 import { getMarketHistoricalData, transformEvents } from "../services/events.service"
-import { eventsSchema, getMarketHistoricalDataSchema } from "./shemas"
+import { eventsSchema } from "./shemas"
 import { EventsRoute, GetHistoricalMarketDataParamsRoute } from "../types"
 
 export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventRepository: EventRepository }) {

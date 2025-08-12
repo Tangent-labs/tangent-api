@@ -1,7 +1,8 @@
 import { FastifyInstance } from "fastify"
 import { isAddress } from "viem"
-import { RawEvent, TotalBorrowPoint } from "../types"
+import { RawEvent } from "../types"
 import { AddressLike } from "ethers"
+import { rangeToMinDate } from "../utils"
 export class EventRepository {
   fastify: FastifyInstance
 
@@ -111,31 +112,33 @@ export class EventRepository {
 
   /**
    *
-   * @param prisma help  the query
+   * @param marketAddress marketAddress provided by the frontend
    * @param range range provided by the frontend
    * @param maxPoints max number of points displayed in the graph
    * @returns
    */
-  async getHistoricalData(marketAddress: AddressLike, minDate: Date, rowAmounts: number = 100) {
-    const query = `WITH filtered_data AS (
-    SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
-    FROM global.market_global_data as mgd
-    JOIN events.usg_markets as um ON mgd.market_id = um.id
-    WHERE mgd.timestamp > '${minDate}'
-    AND um.contract_address = '${marketAddress}'
-),
-    row_ratio AS (
-        SELECT CEIL(COUNT(*) / ${rowAmounts}) AS ratio 
-        FROM filtered_data
-    )
-    SELECT timestamp, tvl_usd, total_debt, ir_apy, apr_current
-    FROM (
-        SELECT id, timestamp, tvl_usd, total_debt, ir_apy, apr_current,
+  async getHistoricalData(marketAddress: AddressLike, range: string, rowAmounts: number = 100) {
+    const minDate = rangeToMinDate(range)
+    const minDateClause = minDate ? `AND mgd.timestamp > '${minDate}'` : ""
+
+    const query = `
+      WITH filtered_data AS (
+      SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
+      FROM global.market_global_data AS mgd
+      JOIN events.usg_markets AS um ON mgd.market_id = um.id
+      WHERE um.contract_address = '${marketAddress}' ${minDateClause}),
+      row_ratio AS (
+          SELECT CEIL(COUNT(*) / ${rowAmounts}) AS ratio
+          FROM filtered_data
+      )
+      SELECT timestamp, tvl_usd, total_debt, ir_apy, apr_current
+      FROM (
+          SELECT id, timestamp, tvl_usd, total_debt, ir_apy, apr_current,
               ROW_NUMBER() OVER (ORDER BY id DESC) AS rn
-        FROM filtered_data
-    ) x
-      CROSS JOIN row_ratio
-    ORDER BY id ASC;`
+          FROM filtered_data
+      ) x
+        CROSS JOIN row_ratio
+      ORDER BY id ASC;`
 
     const chartData = await this.fastify.prisma.$queryRawUnsafe<any[]>(query, marketAddress, minDate, rowAmounts)
 

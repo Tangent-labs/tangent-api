@@ -1,4 +1,4 @@
-import { RawEvent, TotalBorrowPoint, TransformedEvent } from "../types"
+import { RawEvent, TransformedEvent } from "../types"
 import { EventRepository } from "../data/events.data"
 import { AddressLike } from "ethers"
 
@@ -12,9 +12,9 @@ export function transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
   }))
 }
 
-export async function getMarketHistoricalData(eventRepository: EventRepository, market: AddressLike, minDate: Date) {
+export async function getMarketHistoricalData(eventRepository: EventRepository, market: AddressLike, range: string) {
   try {
-    const result = await eventRepository.getHistoricalData(market, minDate)
+    const result = await eventRepository.getHistoricalData(market, range)
 
     return result
   } catch (err) {
