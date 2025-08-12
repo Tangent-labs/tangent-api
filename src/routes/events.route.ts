@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
 import { EventRepository } from "../data/events.data"
 import { getMarketHistoricalData, transformEvents } from "../services/events.service"
-import { eventsSchema } from "./shemas"
-import { EventsRoute, GetHistoricalMarketDataParamsRoute } from "../types"
+import { eventsSchema, getMarketHistoricalMarketDataSchema } from "./shemas"
+import { EventsRoute, GetHistoricalMarketDataRoute } from "../types"
 
 export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventRepository: EventRepository }) {
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
@@ -18,15 +18,16 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     }
   })
 
-  // TODO Need to add a schema
-  fastify.get("/markets/:marketAddress/dateFrom/:dateFrom", async (request: FastifyRequest<GetHistoricalMarketDataParamsRoute>, reply) => {
-    const { marketAddress, dateFrom } = request.params
+  fastify.get<GetHistoricalMarketDataRoute>("/markets/:marketAddress/dateFrom/:dateFrom", getMarketHistoricalMarketDataSchema, async (request, reply) => {
     try {
-      const result = await getMarketHistoricalData(opts.eventRepository, marketAddress, dateFrom)
+      const { marketAddress, dateFrom } = request.params
+      const { range = "all" } = request.query
+      const result = await getMarketHistoricalData(opts.eventRepository, marketAddress, dateFrom, range)
+
       return reply.status(200).send(result)
     } catch (err: any) {
-      request.log.error("Error fetching total borrow data:", err)
-      return reply.status(500).send({ error: "Failed to fetch total borrow data" })
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch events" })
     }
   })
 }

@@ -19,17 +19,15 @@ export interface UserStatus {
   friends: number
 }
 
+export interface GetHistoricalMarketDataRoute {
+  Params: { marketAddress: string; dateFrom: string }
+  Querystring: { range?: string }
+}
+
 export interface EventsRoute {
   Params: {
     account: string
     market: string
-  }
-}
-
-export interface GetHistoricalMarketDataParamsRoute {
-  Params: {
-    marketAddress: string
-    dateFrom: string
   }
 }
 

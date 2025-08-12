@@ -12,9 +12,9 @@ export function transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
   }))
 }
 
-export async function getMarketHistoricalData(eventRepository: EventRepository, market: AddressLike, range: string) {
+export async function getMarketHistoricalData(eventRepository: EventRepository, market: AddressLike, dateFrom: string, range: string) {
   try {
-    const result = await eventRepository.getHistoricalData(market, range)
+    const result = await eventRepository.getHistoricalData(market, dateFrom, range)
 
     return result
   } catch (err) {

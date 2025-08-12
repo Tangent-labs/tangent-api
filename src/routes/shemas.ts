@@ -1,5 +1,49 @@
 import { RouteShorthandOptions } from "fastify"
 
+export const getMarketHistoricalMarketDataSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      additionalProperties: false,
+      required: ["marketAddress", "dateFrom"],
+      properties: {
+        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        dateFrom: { type: "string", format: "date-time" },
+      },
+    },
+    querystring: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        range: { type: "string", enum: ["1w", "1m", "1y", "all"], default: "all" },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["timestamp", "tvl_usd", "total_debt", "ir_apy", "apr_current"],
+          properties: {
+            timestamp: { type: "string", format: "date-time" },
+            tvl_usd: { type: "number" },
+            total_debt: { type: "number" },
+            ir_apy: { type: "number" },
+            apr_current: { type: "string" },
+          },
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const eventsSchema: RouteShorthandOptions = {
   schema: {
     params: {
@@ -22,33 +66,6 @@ export const eventsSchema: RouteShorthandOptions = {
             date: { type: "string", format: "date-time" },
             txHash: { type: "string" },
           },
-        },
-      },
-      500: {
-        type: "object",
-        properties: {
-          error: { type: "string" },
-        },
-      },
-    },
-  },
-}
-
-export const getMarketHistoricalDataSchema: RouteShorthandOptions = {
-  schema: {
-    params: {
-      type: "object",
-      properties: {
-        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-        dateFrom: { type: "Date" },
-      },
-      required: ["marketAddress", "dateFrom"],
-    },
-    response: {
-      200: {
-        type: "object",
-        properties: {
-          message: { type: "string" },
         },
       },
       500: {
