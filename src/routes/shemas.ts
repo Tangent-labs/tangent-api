@@ -44,6 +44,42 @@ export const getMarketHistoricalMarketDataSchema: RouteShorthandOptions = {
   },
 }
 
+export const userTasksSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      properties: {
+        userAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+      required: ["userAddress"],
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            taskId: { type: "number" },
+            asset: { type: "string" },
+            url: { type: "string" },
+            protocol: { type: "string" },
+            description: { type: "string" },
+            pointRate: { type: "number" },
+            status: { type: "boolean" },
+            points: { type: "number" },
+          },
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const eventsSchema: RouteShorthandOptions = {
   schema: {
     params: {

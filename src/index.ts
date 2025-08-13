@@ -28,7 +28,7 @@ fastify.register(fastifyRateLimit, {
 })
 
 const eventRepository = new EventRepository(fastify)
-const referalRepository = new ReferalRepository(fastify.prisma)
+const referalRepository = new ReferalRepository(fastify)
 const referalService = new ReferalService(referalRepository)
 // Register routes
 fastify.register(registerReferralRoute, { referalService })

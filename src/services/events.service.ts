@@ -22,3 +22,14 @@ export async function getMarketHistoricalData(eventRepository: EventRepository, 
     throw err
   }
 }
+
+export async function getUserTasks(eventRepository: EventRepository, userAddress: string) {
+  try {
+    const result = await eventRepository.getUserTasks(userAddress)
+
+    return result
+  } catch (err) {
+    console.log(err)
+    throw err
+  }
+}

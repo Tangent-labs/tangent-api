@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { isAddress } from "viem"
-import { RawEvent } from "../types"
+import { RawEvent, UserTaskRow } from "../types"
 import { AddressLike } from "ethers"
 import { rangeToMinDate } from "../utils"
 export class EventRepository {
@@ -105,7 +105,7 @@ export class EventRepository {
         code: err.code,
         detail: err.detail,
         hint: err.hint,
-      })
+      } as any)
       throw new Error(`Database query failed: ${err.message}`)
     }
   }
@@ -143,5 +143,40 @@ export class EventRepository {
 `
 
     return chartData
+  }
+
+  async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {
+    const addr = userAddress.toLowerCase()
+
+    const rows = await this.fastify.prisma.$queryRaw<UserTaskRow[]>`
+  WITH ut_open AS (
+    SELECT task_id, COUNT(*) AS open_count
+    FROM points.user_tasks
+    WHERE lower(user_address) = ${addr}
+      AND closed IS NULL
+    GROUP BY task_id
+  ),
+  up_sum AS (
+    SELECT task_id, SUM(points)::int AS points_sum
+    FROM points.user_points
+    WHERE lower(user_address) = ${addr}
+    GROUP BY task_id
+  )
+  SELECT
+    t.id                  AS "taskId",
+    t.name                AS "asset",
+    t.protocol            AS "protocol",
+    t.url                 AS "url",
+    t.description         AS "description",
+    t.point_rate          AS "pointRate",
+    (ut_open.open_count > 0)             AS "status",
+    COALESCE(up_sum.points_sum, 0)       AS "points"
+  FROM points.task t
+  LEFT JOIN ut_open  ON ut_open.task_id = t.id
+  LEFT JOIN up_sum   ON up_sum.task_id  = t.id
+  ORDER BY t.id;
+`
+
+    return rows
   }
 }

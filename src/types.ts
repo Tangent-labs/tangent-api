@@ -24,6 +24,12 @@ export interface GetHistoricalMarketDataRoute {
   Querystring: { range?: string }
 }
 
+export interface UserTasks {
+  Params: {
+    userAddress: string
+  }
+}
+
 export interface EventsRoute {
   Params: {
     account: string
@@ -56,4 +62,15 @@ export interface TransformedEvent {
 export interface TotalBorrowPoint {
   timestamp: Date
   value: string
+}
+
+export type UserTaskRow = {
+  taskId: number
+  asset: string
+  url: string
+  protocol: string
+  description: string
+  pointRate: number
+  status: boolean
+  points: number
 }

@@ -1,18 +1,20 @@
 import { PrismaClient } from "@prisma/client"
 import { customAlphabet } from "nanoid"
 import { UserData, UserStatus } from "../types"
+import { FastifyInstance } from "fastify"
 
 const nanoid = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 8)
 
 export class ReferalRepository {
-  prisma: PrismaClient
-  constructor(prismaClient: PrismaClient) {
-    this.prisma = prismaClient
+  fastify: FastifyInstance
+
+  constructor(fastify: FastifyInstance) {
+    this.fastify = fastify
   }
 
   async getReferralByCode(code: string): Promise<UserData | null> {
     try {
-      const user = await this.prisma.user.findFirst({
+      const user = await this.fastify.prisma.user.findFirst({
         where: { code },
       })
       return user
@@ -34,7 +36,7 @@ export class ReferalRepository {
 
   async getUserStatus(address: string): Promise<UserStatus> {
     try {
-      const user = await this.prisma.user.findUnique({
+      const user = await this.fastify.prisma.user.findUnique({
         where: { address: address.toLowerCase() },
         select: {
           id: true,
@@ -63,7 +65,7 @@ export class ReferalRepository {
 
   async isUserOnboarded(address: string): Promise<boolean> {
     try {
-      const user = await this.prisma.user.findFirst({
+      const user = await this.fastify.prisma.user.findFirst({
         where: { address: address.toLowerCase() },
       })
 
@@ -75,58 +77,91 @@ export class ReferalRepository {
     }
   }
 
+  /**
+   *
+   * @param referralCode referralCode to use for child referral
+   * @param address address of the child
+   * Apply the referral as cell as the boost for the child
+   */
   async processReferral(referralCode: string, address: string): Promise<void> {
-    try {
-      const referrer = await this.prisma.user.findFirst({
+    const addr = address.toLowerCase()
+    const now = new Date()
+
+    await this.fastify.prisma.$transaction(async (tx: any) => {
+      const referrer = await tx.user.findFirst({
         where: { code: referralCode },
         select: { id: true, address: true },
       })
-      if (!referrer) {
-        throw new Error("Invalid referral code")
-      }
+      if (!referrer) throw new Error("Invalid referral code")
 
-      if (referrer?.address === address) {
-        throw new Error("User is using hiw own referral code")
+      if (referrer.address.toLowerCase() === addr) {
+        throw new Error("User is using their own referral code")
       }
 
       // Check if the user has already used a code
-      const existingUsage = await this.prisma.referral_usages.findFirst({
-        where: { godfather_id: referrer?.id },
+      const child = await tx.user.findUnique({
+        where: { address: addr },
+        select: { id: true, godfather: true },
       })
-      if (existingUsage) {
+      if (child?.godfather) {
         throw new Error("User has already used a referral code")
       }
 
-      await this.prisma.user.upsert({
-        where: { address: address.toLowerCase() },
+      // 3) Upsert user + link godfather (this is your existing logic)
+      await tx.user.upsert({
+        where: { address: addr },
         update: {
           onboarded: true,
           godfather: {
             create: {
               godfather_id: referrer.id,
-              used_at: new Date(),
+              used_at: now,
             },
           },
         },
         create: {
-          address: address.toLowerCase(),
+          address: addr,
           onboarded: true,
           godfather: {
             create: {
               godfather_id: referrer.id,
-              used_at: new Date(),
+              used_at: now,
             },
           },
         },
       })
-    } catch (err) {
-      throw new Error(`Failed to process referral for code ${referralCode} and address ${address}`)
-    }
+
+      const openBoost = await tx.user_boost.findFirst({
+        where: { user_address: addr, end_at: null },
+        orderBy: { start_at: "desc" },
+      })
+
+      const current = openBoost ? Number(openBoost.multiplier) : 1
+
+      const newBoost = current * 1.1
+      const newCappedBoost = Math.min(4, newBoost)
+
+      if (openBoost) {
+        await tx.user_boost.update({
+          where: { id: openBoost.id },
+          data: { end_at: now },
+        })
+      }
+
+      await tx.user_boost.create({
+        data: {
+          user_address: addr,
+          multiplier: newCappedBoost,
+          start_at: now,
+          end_at: null,
+        },
+      })
+    })
   }
 
   async generateReferralCode(address: string): Promise<string> {
     try {
-      const user = await this.prisma.user.findUnique({
+      const user = await this.fastify.prisma.user.findUnique({
         where: { address: address.toLowerCase() },
       })
       if (user?.code) {
@@ -138,13 +173,13 @@ export class ReferalRepository {
 
       do {
         code = nanoid()
-        const existing = await this.prisma.user.findFirst({
+        const existing = await this.fastify.prisma.user.findFirst({
           where: { code },
         })
         isUnique = !existing
       } while (!isUnique)
 
-      await this.prisma.user.upsert({
+      await this.fastify.prisma.user.upsert({
         where: { address: address.toLowerCase() },
         update: { code },
         create: {

@@ -1,6 +1,4 @@
 import { ethers } from "ethers"
-import { PrismaClient } from "@prisma/client"
-
 import { ReferralInput, UserStatus } from "../types"
 import { ReferalRepository } from "../data/referral.data"
 
@@ -63,7 +61,7 @@ export class ReferalService {
     try {
       this.checkAccount(account)
 
-      const status = await this.referalRepo.getUserStatus(account)
+      const status = await this.referalRepo.getUserStatus(account.toLowerCase())
       logger.info(`Fetched referral status for account ${account}:`, status)
       return status
     } catch (err) {
