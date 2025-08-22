@@ -33,3 +33,14 @@ export async function getUserTasks(eventRepository: EventRepository, userAddress
     throw err
   }
 }
+
+export async function getUserPoints(eventRepository: EventRepository, userAddress: string) {
+  try {
+    const result = await eventRepository.getUserPoints(userAddress)
+
+    return result
+  } catch (err) {
+    console.log(err)
+    throw err
+  }
+}

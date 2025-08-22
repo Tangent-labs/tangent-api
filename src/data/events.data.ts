@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { isAddress } from "viem"
-import { RawEvent, UserTaskRow } from "../types"
+import { RawEvent, UserPointsRow, UserTaskRow } from "../types"
 import { AddressLike } from "ethers"
 import { rangeToMinDate } from "../utils"
 export class EventRepository {
@@ -178,5 +178,42 @@ export class EventRepository {
 `
 
     return rows
+  }
+
+  async getUserPoints(userAddress: string): Promise<{
+    totalPoints: number
+    basePoints: number
+    referralPoints: number
+  }> {
+    const addr = userAddress.toLowerCase()
+
+    const aggregatedPoints = await this.fastify.prisma.$queryRaw<UserPointsRow[]>`
+    SELECT
+      COALESCE(SUM(up.points), 0)::bigint AS base_points,
+      COALESCE((
+        SELECT u.referral_points
+        FROM "global"."user" u
+        WHERE lower(u.address) = ${addr}
+        LIMIT 1
+      ), 0)::bigint AS referral_points,
+      COALESCE(SUM(up.points), 0)::bigint
+        + COALESCE((
+            SELECT u.referral_points
+            FROM "global"."user" u
+            WHERE lower(u.address) = ${addr}
+            LIMIT 1
+          ), 0)::bigint AS total_points
+    FROM points.user_points up
+    WHERE lower(up.user_address) = ${addr};
+  `
+
+    const totalUserPoints = aggregatedPoints[0] ?? { basePoints: 0, referralPoints: 0, totalPoints: 0 }
+
+    // If you prefer BigInt out, return row.total_points directly.
+    const basePoints = Number(totalUserPoints.base_points)
+    const referralPoints = Number(totalUserPoints.referral_points)
+    const totalPoints = Number(totalUserPoints.total_points)
+
+    return { totalPoints, basePoints, referralPoints }
   }
 }

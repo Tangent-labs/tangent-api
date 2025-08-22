@@ -30,6 +30,12 @@ export interface UserTasks {
   }
 }
 
+export interface UserPoints {
+  Params: {
+    userAddress: string
+  }
+}
+
 export interface EventsRoute {
   Params: {
     account: string
@@ -73,4 +79,10 @@ export type UserTaskRow = {
   pointRate: number
   status: boolean
   points: number
+}
+
+export type UserPointsRow = {
+  base_points: bigint
+  referral_points: bigint
+  total_points: bigint
 }
