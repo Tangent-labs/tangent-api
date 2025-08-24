@@ -85,4 +85,5 @@ export type UserPointsRow = {
   base_points: bigint
   referral_points: bigint
   total_points: bigint
+  daily_rate: bigint
 }

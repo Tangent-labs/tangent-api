@@ -181,39 +181,106 @@ export class EventRepository {
   }
 
   async getUserPoints(userAddress: string): Promise<{
-    totalPoints: number
-    basePoints: number
-    referralPoints: number
+    totalPoints: bigint
+    basePoints: bigint
+    referralPoints: bigint
+    dailyRate: bigint
   }> {
     const addr = userAddress.toLowerCase()
 
-    const aggregatedPoints = await this.fastify.prisma.$queryRaw<UserPointsRow[]>`
+    // Compute total points
+    const computedPoints = await this.fastify.prisma.$queryRaw<UserPointsRow[]>`
+    WITH base AS (
+      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
+      FROM points.user_points up
+      WHERE up.user_address = ${addr}
+    )
     SELECT
-      COALESCE(SUM(up.points), 0)::bigint AS base_points,
-      COALESCE((
-        SELECT u.referral_points
-        FROM "global"."user" u
-        WHERE lower(u.address) = ${addr}
-        LIMIT 1
-      ), 0)::bigint AS referral_points,
-      COALESCE(SUM(up.points), 0)::bigint
-        + COALESCE((
-            SELECT u.referral_points
-            FROM "global"."user" u
-            WHERE lower(u.address) = ${addr}
-            LIMIT 1
-          ), 0)::bigint AS total_points
-    FROM points.user_points up
-    WHERE lower(up.user_address) = ${addr};
+      b.base_points,
+      COALESCE(u.referral_points, 0)::bigint AS referral_points,
+      b.base_points + COALESCE(u.referral_points, 0)::bigint AS total_points
+    FROM base b
+    LEFT JOIN "global"."user" u
+      ON u.address = ${addr}
+    LIMIT 1;
   `
 
-    const totalUserPoints = aggregatedPoints[0] ?? { basePoints: 0, referralPoints: 0, totalPoints: 0 }
+    const totals = computedPoints[0] ?? { base_points: 0n, referral_points: 0n, total_points: 0n }
 
-    // If you prefer BigInt out, return row.total_points directly.
-    const basePoints = Number(totalUserPoints.base_points)
-    const referralPoints = Number(totalUserPoints.referral_points)
-    const totalPoints = Number(totalUserPoints.total_points)
+    // Compute previsionnal daily rate with ongoing user_tasks and current boost
+    const rate = await this.fastify.prisma.$queryRaw<{ daily_rate: bigint }[]>`
+    WITH me AS (
+      SELECT ${addr}::text AS address
+    ),
+    boost AS (
+      SELECT COALESCE((
+        SELECT ub.multiplier::numeric
+        FROM points.user_boost ub
+        WHERE ub.user_address = (SELECT address FROM me)
+          AND ub.start_at <= NOW()
+          AND (ub.end_at IS NULL OR ub.end_at > NOW())
+        ORDER BY ub.start_at DESC
+        LIMIT 1
+      ), 1.00::numeric) AS m
+    ),
+    open_tasks AS (
+      SELECT
+        ut.id,
+        ut.user_address,
+        ut.task_id,
+        ut.amount,
+        t.point_rate::numeric   AS point_rate,
+        t.unit::text            AS unit,
+        t.token_address::text   AS token_address
+      FROM points.user_tasks ut
+      JOIN points.task t ON t.id = ut.task_id
+      WHERE ut.user_address = (SELECT address FROM me)
+        AND ut.closed IS NULL
+    ),
+    per_task AS (
+      SELECT
+        ot.id,
+        (ot.amount::numeric / 1e18) AS amount_tokens,
+        COALESCE(pf.price_usd::numeric, 0) / 1e18 AS price_usd,
+        CASE
+          WHEN ot.unit = 'hour'   THEN 3600::numeric
+          WHEN ot.unit = 'day'    THEN 86400::numeric
+          WHEN ot.unit = 'second' THEN 1::numeric
+          ELSE 1::numeric
+        END AS unit_seconds,
+        ot.point_rate,
+        (SELECT m FROM boost) AS boost_m
+      FROM open_tasks ot
+      LEFT JOIN LATERAL (
+        SELECT pf.price_usd
+        FROM points.price_feeds pf
+        WHERE pf.token = ot.token_address
+        ORDER BY ABS(EXTRACT(EPOCH FROM pf.timestamp) - EXTRACT(EPOCH FROM NOW()))
+        LIMIT 1
+      ) pf ON TRUE
+    )
+    SELECT
+      COALESCE(
+        SUM(
+          ROUND(
+            amount_tokens
+            * price_usd
+            * (86400::numeric / NULLIF(unit_seconds, 0))
+            * point_rate
+            * boost_m
+          )
+        ), 0
+      )::bigint AS daily_rate
+    FROM per_task;
+  `
 
-    return { totalPoints, basePoints, referralPoints }
+    const dailyRate = rate[0]?.daily_rate ?? 0n
+
+    return {
+      basePoints: totals.base_points,
+      referralPoints: totals.referral_points,
+      totalPoints: totals.total_points,
+      dailyRate,
+    }
   }
 }
