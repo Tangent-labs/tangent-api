@@ -188,7 +188,6 @@ export class EventRepository {
   }> {
     const addr = userAddress.toLowerCase()
 
-    // Compute total points
     const computedPoints = await this.fastify.prisma.$queryRaw<UserPointsRow[]>`
     WITH base AS (
       SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
@@ -205,9 +204,12 @@ export class EventRepository {
     LIMIT 1;
   `
 
-    const totals = computedPoints[0] ?? { base_points: 0n, referral_points: 0n, total_points: 0n }
+    const totals = computedPoints[0] ?? {
+      base_points: 0n,
+      referral_points: 0n,
+      total_points: 0n,
+    }
 
-    // Compute previsionnal daily rate with ongoing user_tasks and current boost
     const rate = await this.fastify.prisma.$queryRaw<{ daily_rate: bigint }[]>`
     WITH me AS (
       SELECT ${addr}::text AS address
@@ -225,9 +227,6 @@ export class EventRepository {
     ),
     open_tasks AS (
       SELECT
-        ut.id,
-        ut.user_address,
-        ut.task_id,
         ut.amount,
         t.point_rate::numeric   AS point_rate,
         t.unit::text            AS unit,
@@ -239,30 +238,30 @@ export class EventRepository {
     ),
     per_task AS (
       SELECT
-        ot.id,
-        (ot.amount::numeric / 1e18) AS amount_tokens,
-        COALESCE(pf.price_usd::numeric, 0) / 1e18 AS price_usd,
+        (ot.amount::numeric / 1e18)        AS amount_tokens,
+        COALESCE(pf.price_usd::numeric, 0) AS price_usd,
         CASE
           WHEN ot.unit = 'hour'   THEN 3600::numeric
           WHEN ot.unit = 'day'    THEN 86400::numeric
-          WHEN ot.unit = 'second' THEN 1::numeric
           ELSE 1::numeric
-        END AS unit_seconds,
-        ot.point_rate,
-        (SELECT m FROM boost) AS boost_m
+        END                                AS unit_seconds,
+        ot.point_rate                      AS point_rate,
+        b.m                                AS boost_m
       FROM open_tasks ot
+      CROSS JOIN boost b
       LEFT JOIN LATERAL (
         SELECT pf.price_usd
         FROM points.price_feeds pf
-        WHERE pf.token = ot.token_address
-        ORDER BY ABS(EXTRACT(EPOCH FROM pf.timestamp) - EXTRACT(EPOCH FROM NOW()))
+        WHERE LOWER(pf.token) = LOWER(ot.token_address)
+          AND pf.timestamp <= NOW()
+        ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
     )
     SELECT
       COALESCE(
-        SUM(
-          ROUND(
+        ROUND(
+          SUM(
             amount_tokens
             * price_usd
             * (86400::numeric / NULLIF(unit_seconds, 0))
