@@ -117,32 +117,6 @@ export class ReferralRepository {
           },
         },
       })
-
-      const openBoost = await tx.user_boost.findFirst({
-        where: { user_address: addr, end_at: null },
-        orderBy: { start_at: "desc" },
-      })
-
-      const current = openBoost ? Number(openBoost.multiplier) : 1
-
-      const newBoost = current * 1.1
-      const newCappedBoost = Math.min(4, newBoost)
-
-      if (openBoost) {
-        await tx.user_boost.update({
-          where: { id: openBoost.id },
-          data: { end_at: now },
-        })
-      }
-
-      await tx.user_boost.create({
-        data: {
-          user_address: addr,
-          multiplier: newCappedBoost,
-          start_at: now,
-          end_at: null,
-        },
-      })
     })
   }
 
