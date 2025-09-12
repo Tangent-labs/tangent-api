@@ -48,10 +48,11 @@ export const userPointsSchema: RouteShorthandOptions = {
   schema: {
     params: {
       type: "object",
+      required: ["userAddress", "dateFrom"],
       properties: {
         userAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        dateFrom: { type: "string", format: "date-time" },
       },
-      required: ["userAddress"],
     },
     response: {
       200: {

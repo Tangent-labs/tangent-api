@@ -33,6 +33,7 @@ export interface UserTasks {
 export interface UserPoints {
   Params: {
     userAddress: string
+    dateFrom: string
   }
 }
 

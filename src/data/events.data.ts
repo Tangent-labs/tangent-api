@@ -157,10 +157,9 @@ export class EventRepository {
     GROUP BY task_id
   ),
   up_sum AS (
-    SELECT task_id, SUM(points)::int AS points_sum
+    SELECT task_id, points AS points_sum
     FROM points.user_points
     WHERE lower(user_address) = ${addr}
-    GROUP BY task_id
   )
   SELECT
     t.id                  AS "taskId",
@@ -180,7 +179,10 @@ export class EventRepository {
     return rows
   }
 
-  async getUserPoints(userAddress: string): Promise<{
+  async getUserPoints(
+    userAddress: string,
+    now: string
+  ): Promise<{
     totalPoints: bigint
     basePoints: bigint
     referralPoints: bigint
@@ -219,8 +221,8 @@ export class EventRepository {
         SELECT ub.multiplier::numeric
         FROM points.user_boost ub
         WHERE ub.user_address = (SELECT address FROM me)
-          AND ub.start_at <= NOW()
-          AND (ub.end_at IS NULL OR ub.end_at > NOW())
+          AND ub.start_at <= ${now}::timestamp
+          AND (ub.end_at IS NULL)
         ORDER BY ub.start_at DESC
         LIMIT 1
       ), 1.00::numeric) AS m
@@ -229,7 +231,6 @@ export class EventRepository {
       SELECT
         ut.amount,
         t.point_rate::numeric   AS point_rate,
-        t.unit::text            AS unit,
         t.token_address::text   AS token_address
       FROM points.user_tasks ut
       JOIN points.task t ON t.id = ut.task_id
@@ -240,11 +241,6 @@ export class EventRepository {
       SELECT
         (ot.amount::numeric / 1e18)        AS amount_tokens,
         COALESCE(pf.price_usd::numeric, 0) AS price_usd,
-        CASE
-          WHEN ot.unit = 'hour'   THEN 3600::numeric
-          WHEN ot.unit = 'day'    THEN 86400::numeric
-          ELSE 1::numeric
-        END                                AS unit_seconds,
         ot.point_rate                      AS point_rate,
         b.m                                AS boost_m
       FROM open_tasks ot
@@ -253,7 +249,7 @@ export class EventRepository {
         SELECT pf.price_usd
         FROM points.price_feeds pf
         WHERE LOWER(pf.token) = LOWER(ot.token_address)
-          AND pf.timestamp <= NOW()
+          AND pf.timestamp < ${now}::timestamp
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
@@ -264,7 +260,7 @@ export class EventRepository {
           SUM(
             amount_tokens
             * price_usd
-            * (86400::numeric / NULLIF(unit_seconds, 0))
+            * 86400
             * point_rate
             * boost_m
           )
