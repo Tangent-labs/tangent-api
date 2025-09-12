@@ -1,113 +1,73 @@
-import { FastifyInstance } from "fastify"
 import { isAddress } from "viem"
-import { RawEvent, UserPointsRow, UserTaskRow } from "../types"
 import { AddressLike } from "ethers"
 import { rangeToMinDate } from "../utils"
-export class EventRepository {
-  fastify: FastifyInstance
+import { PrismaClient } from "@prisma/client"
+import { RawEvent, UserPointsRow, UserTaskRow } from "../types"
 
-  constructor(fastify: FastifyInstance) {
-    this.fastify = fastify
+export class EventRepository {
+  prismaClient: PrismaClient
+
+  constructor(prisma: PrismaClient) {
+    this.prismaClient = prisma
   }
 
   async getEventsByAccount(account: string, market: string): Promise<RawEvent[]> {
-    try {
-      if (!isAddress(account) || !isAddress(market)) {
-        throw new Error("Invalid account or market address")
-      }
+    if (!isAddress(account) || !isAddress(market)) {
+      throw new Error("Invalid account or market address")
+    }
 
-      const marketResult = await this.fastify.pg.query<{ id: string }>(
-        `
-      SELECT id
-      FROM events.usg_markets
-      WHERE LOWER(contract_address) = LOWER($1)
-      `,
-        [market]
-      )
+    const marketResult = await this.prismaClient.$queryRaw<{ id: string }[]>`
+      SELECT id FROM events.usg_markets WHERE LOWER(contract_address) = LOWER(${market})
+    `
+    if (marketResult.length === 0) throw new Error(`No market found for contract_address: ${market}`)
 
-      if (marketResult.rows.length === 0) {
-        throw new Error(`No market found for contract_address: ${market}`)
-      }
+    const market_id = marketResult[0].id
 
-      const market_id = marketResult.rows[0].id
-
-      const { rows } = await this.fastify.pg.query<RawEvent>(
-        `
+    const rows = await this.prismaClient.$queryRaw<RawEvent[]>`
       SELECT 'borrow' AS label, '0' AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.borrow
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.deposit
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.deposit WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_deposit
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.zap_deposit WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.deposit_and_borrow
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.deposit_and_borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_deposit_and_borrow
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.zap_deposit_and_borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'withdraw' AS label, withdrawn_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.withdraw
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.repay
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.repay WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.repay_and_withdraw
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.repay_and_withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_repay
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.zap_repay WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_repay_and_withdraw
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.zap_repay_and_withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.leverage
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.leverage WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_leverage
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.zap_leverage WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.liquidate
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.liquidate WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       UNION ALL
       SELECT 'self_liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.self_liquidate
-      WHERE LOWER(account) = LOWER($1) AND market_id = $2
+      FROM events.self_liquidate WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
       ORDER BY date DESC
-      `,
-        [account, market_id]
-      )
-
-      if (rows.length === 0) {
-        this.fastify.log.warn(`No events found for account: ${account}, market: ${market} (market_id: ${market_id})`)
-      }
-
-      return rows
-    } catch (err: any) {
-      this.fastify.log.error("Query error:", {
-        message: err.message,
-        stack: err.stack,
-        code: err.code,
-        detail: err.detail,
-        hint: err.hint,
-      } as any)
-      throw new Error(`Database query failed: ${err.message}`)
-    }
+    `
+    return rows
   }
 
   /**
@@ -119,7 +79,7 @@ export class EventRepository {
   async getHistoricalData(marketAddress: AddressLike, dateFrom: string, range: string, rowAmounts: number = 100) {
     const minDate = rangeToMinDate(range, dateFrom) // always a string (incl. for "all")
 
-    const chartData = await this.fastify.prisma.$queryRaw<any[]>`
+    const chartData = await this.prismaClient.$queryRaw<any[]>`
   WITH filtered_data AS (
     SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
     FROM global.market_global_data AS mgd
@@ -148,7 +108,7 @@ export class EventRepository {
   async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {
     const addr = userAddress.toLowerCase()
 
-    const rows = await this.fastify.prisma.$queryRaw<UserTaskRow[]>`
+    const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
     FROM points.user_tasks
@@ -190,7 +150,7 @@ export class EventRepository {
   }> {
     const addr = userAddress.toLowerCase()
 
-    const computedPoints = await this.fastify.prisma.$queryRaw<UserPointsRow[]>`
+    const computedPoints = await this.prismaClient.$queryRaw<UserPointsRow[]>`
     WITH base AS (
       SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
       FROM points.user_points up
@@ -212,7 +172,7 @@ export class EventRepository {
       total_points: 0n,
     }
 
-    const rate = await this.fastify.prisma.$queryRaw<{ daily_rate: bigint }[]>`
+    const rate = await this.prismaClient.$queryRaw<{ daily_rate: bigint }[]>`
     WITH me AS (
       SELECT ${addr}::text AS address
     ),

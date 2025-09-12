@@ -1,14 +1,15 @@
-import Fastify, { FastifyInstance } from "fastify"
-import Postgres from "@fastify/postgres"
-import fastifyRateLimit from "@fastify/rate-limit"
-import fastifyCors from "@fastify/cors"
 import dotenv from "dotenv"
+import fastifyCors from "@fastify/cors"
+import Postgres from "@fastify/postgres"
 import prismaPlugin from "./plugins/prisma"
-import { registerReferralRoute } from "./routes/referral.route"
-import { registerEventsRoute } from "./routes/events.route"
+import fastifyRateLimit from "@fastify/rate-limit"
+import Fastify, { FastifyInstance } from "fastify"
 import { EventRepository } from "./data/events.data"
-import { ReferalRepository } from "./data/referral.data"
-import { ReferalService } from "./services/referral.service"
+import { ReferralRepository } from "./data/referral.data"
+import { EventsService } from "./services/events.service"
+import { registerEventsRoute } from "./routes/events.route"
+import { ReferralService } from "./services/referral.service"
+import { registerReferralRoute } from "./routes/referral.route"
 
 dotenv.config()
 
@@ -27,12 +28,16 @@ fastify.register(fastifyRateLimit, {
   timeWindow: "15 minutes",
 })
 
-const eventRepository = new EventRepository(fastify)
-const referalRepository = new ReferalRepository(fastify)
-const referalService = new ReferalService(referalRepository)
-// Register routes
-fastify.register(registerReferralRoute, { referalService })
-fastify.register(registerEventsRoute, { eventRepository })
+fastify.register(async (f) => {
+  const eventRepository = new EventRepository(f.prisma)
+  const eventsService = new EventsService(eventRepository)
+
+  const referralRepository = new ReferralRepository(f.prisma)
+  const referralService = new ReferralService(referralRepository)
+
+  fastify.register(registerReferralRoute, { referralService })
+  fastify.register(registerEventsRoute, { eventsService })
+})
 
 // Graceful shutdown
 const start = async () => {

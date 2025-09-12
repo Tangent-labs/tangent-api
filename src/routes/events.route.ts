@@ -1,15 +1,16 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
-import { EventRepository } from "../data/events.data"
-import { getMarketHistoricalData, getUserPoints, getUserTasks, transformEvents } from "../services/events.service"
-import { eventsSchema, getMarketHistoricalMarketDataSchema, userPointsSchema, userTasksSchema } from "./shemas"
+import { EventsService } from "../services/events.service"
 import { EventsRoute, GetHistoricalMarketDataRoute, UserPoints, UserTasks } from "../types"
+import { eventsSchema, getMarketHistoricalMarketDataSchema, userPointsSchema, userTasksSchema } from "./shemas"
 
-export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventRepository: EventRepository }) {
+export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventsService: EventsService }) {
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
     try {
       const { account, market } = request.params
-      const rawEvents = await opts.eventRepository.getEventsByAccount(account, market)
-      const transformedEvents = transformEvents(rawEvents)
+
+      const rawEvents = await opts.eventsService.getEventsByAccount(account, market)
+
+      const transformedEvents = opts.eventsService.transformEvents(rawEvents)
       fastify.log.info(`Query returned ${transformedEvents.length} rows for account ${account}: ${JSON.stringify(transformedEvents)}`)
       return transformedEvents
     } catch (err: any) {
@@ -22,7 +23,7 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     try {
       const { marketAddress, dateFrom } = request.params
       const { range = "all" } = request.query
-      const result = await getMarketHistoricalData(opts.eventRepository, marketAddress, dateFrom, range)
+      const result = await opts.eventsService.getMarketHistoricalData(marketAddress, dateFrom, range)
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
@@ -33,7 +34,7 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
   fastify.get<UserTasks>("/tasks/:userAddress", userTasksSchema, async (request, reply) => {
     try {
       const { userAddress } = request.params
-      const result = await getUserTasks(opts.eventRepository, userAddress)
+      const result = await opts.eventsService.getUserTasks(userAddress)
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
@@ -44,7 +45,7 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
   fastify.get<UserPoints>("/points/:userAddress/:dateFrom", userPointsSchema, async (request, reply) => {
     try {
       const { userAddress, dateFrom } = request.params
-      const result = await getUserPoints(opts.eventRepository, userAddress, dateFrom)
+      const result = await opts.eventsService.getUserPoints(userAddress, dateFrom)
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)

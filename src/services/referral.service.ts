@@ -1,21 +1,23 @@
 import { ethers } from "ethers"
 import { ReferralInput, UserStatus } from "../types"
-import { ReferalRepository } from "../data/referral.data"
+import { ReferralRepository } from "../data/referral.data"
 
-export class ReferalService {
-  referalRepo: ReferalRepository
-  constructor(referalRepo: ReferalRepository) {
-    this.referalRepo = referalRepo
+export class ReferralService {
+  referralRepo: ReferralRepository
+
+  constructor(referralRepo: ReferralRepository) {
+    this.referralRepo = referralRepo
   }
-  async verifyAndCreateReferralRelationship(input: ReferralInput, logger: any): Promise<{ message: string }> {
-    const { referralCode, signature, account } = input
 
-    const referrer = await this.referalRepo.getReferralByCode(referralCode)
+  async verifyAndCreateReferralRelationship(input: ReferralInput, logger: any): Promise<{ message: string }> {
+    const { referralCode, signature, account, now } = input
+
+    const referrer = await this.referralRepo.getReferralByCode(referralCode)
     if (!referrer) {
       throw new Error("Invalid referral code")
     }
 
-    if (await this.referalRepo.isUserOnboarded(account.toLowerCase())) {
+    if (await this.referralRepo.isUserOnboarded(account.toLowerCase())) {
       throw new Error("User has already used a referral code")
     }
 
@@ -32,7 +34,7 @@ export class ReferalService {
       throw new Error("Signature does not match account")
     }
 
-    await this.referalRepo.processReferral(referralCode, account)
+    await this.referralRepo.processReferral(referralCode, account, now)
     logger.info(`Referral processed for account ${account} with code ${referralCode}`)
 
     return { message: "Referral successfully processed" }
@@ -48,7 +50,7 @@ export class ReferalService {
     try {
       this.checkAccount(account)
 
-      const code = await this.referalRepo.generateReferralCode(account.toLowerCase())
+      const code = await this.referralRepo.generateReferralCode(account.toLowerCase())
       logger.info(`Generated referral code ${code} for account ${account}`)
       return { message: code }
     } catch (err) {
@@ -61,7 +63,7 @@ export class ReferalService {
     try {
       this.checkAccount(account)
 
-      const status = await this.referalRepo.getUserStatus(account.toLowerCase())
+      const status = await this.referralRepo.getUserStatus(account.toLowerCase())
       logger.info(`Fetched referral status for account ${account}:`, status)
       return status
     } catch (err) {

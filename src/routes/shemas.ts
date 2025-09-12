@@ -148,7 +148,7 @@ export const referralSchema: RouteShorthandOptions = {
   schema: {
     body: {
       type: "object",
-      required: ["referralCode", "signature", "account"],
+      required: ["referralCode", "signature", "account", "now"],
       properties: {
         referralCode: {
           type: "string",
@@ -158,6 +158,7 @@ export const referralSchema: RouteShorthandOptions = {
         },
         signature: { type: "string", pattern: "^0x[a-fA-F0-9]{130}$" },
         account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        now: { type: "string", pattern: "date-time" },
       },
     },
     response: {

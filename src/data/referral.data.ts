@@ -1,20 +1,19 @@
-import { PrismaClient } from "@prisma/client"
 import { customAlphabet } from "nanoid"
+import { PrismaClient } from "@prisma/client"
 import { UserData, UserStatus } from "../types"
-import { FastifyInstance } from "fastify"
 
 const nanoid = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 8)
 
-export class ReferalRepository {
-  fastify: FastifyInstance
+export class ReferralRepository {
+  prismaClient: PrismaClient
 
-  constructor(fastify: FastifyInstance) {
-    this.fastify = fastify
+  constructor(prisma: PrismaClient) {
+    this.prismaClient = prisma
   }
 
   async getReferralByCode(code: string): Promise<UserData | null> {
     try {
-      const user = await this.fastify.prisma.user.findFirst({
+      const user = await this.prismaClient.user.findFirst({
         where: { code },
       })
       return user
@@ -23,20 +22,9 @@ export class ReferalRepository {
     }
   }
 
-  async getUserByAddress(prisma: PrismaClient, address: string): Promise<UserData | null> {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { address: address.toLowerCase() },
-      })
-      return user
-    } catch (err) {
-      throw new Error(`Failed to fetch user ${address}`)
-    }
-  }
-
   async getUserStatus(address: string): Promise<UserStatus> {
     try {
-      const user = await this.fastify.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { address: address.toLowerCase() },
         select: {
           id: true,
@@ -65,7 +53,7 @@ export class ReferalRepository {
 
   async isUserOnboarded(address: string): Promise<boolean> {
     try {
-      const user = await this.fastify.prisma.user.findFirst({
+      const user = await this.prismaClient.user.findFirst({
         where: { address: address.toLowerCase() },
       })
 
@@ -83,11 +71,10 @@ export class ReferalRepository {
    * @param address address of the child
    * Apply the referral as cell as the boost for the child
    */
-  async processReferral(referralCode: string, address: string): Promise<void> {
+  async processReferral(referralCode: string, address: string, now: string): Promise<void> {
     const addr = address.toLowerCase()
-    const now = new Date()
 
-    await this.fastify.prisma.$transaction(async (tx: any) => {
+    await this.prismaClient.$transaction(async (tx: any) => {
       const referrer = await tx.user.findFirst({
         where: { code: referralCode },
         select: { id: true, address: true },
@@ -161,7 +148,7 @@ export class ReferalRepository {
 
   async generateReferralCode(address: string): Promise<string> {
     try {
-      const user = await this.fastify.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { address: address.toLowerCase() },
       })
       if (user?.code) {
@@ -173,13 +160,13 @@ export class ReferalRepository {
 
       do {
         code = nanoid()
-        const existing = await this.fastify.prisma.user.findFirst({
+        const existing = await this.prismaClient.user.findFirst({
           where: { code },
         })
         isUnique = !existing
       } while (!isUnique)
 
-      await this.fastify.prisma.user.upsert({
+      await this.prismaClient.user.upsert({
         where: { address: address.toLowerCase() },
         update: { code },
         create: {

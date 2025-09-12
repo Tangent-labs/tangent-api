@@ -48,6 +48,7 @@ export interface ReferralInput {
   referralCode: string
   signature: string
   account: string
+  now: string
 }
 
 export interface RawEvent {

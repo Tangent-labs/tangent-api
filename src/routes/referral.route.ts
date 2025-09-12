@@ -1,7 +1,7 @@
-import { FastifyInstance, FastifyRequest } from "fastify"
-import { ReferalService } from "../services/referral.service"
-import { referralSchema, generateReferralSchema, referralStatusSchema } from "./shemas"
 import { ReferralInput } from "../types"
+import { FastifyInstance, FastifyRequest } from "fastify"
+import { ReferralService } from "../services/referral.service"
+import { referralSchema, generateReferralSchema, referralStatusSchema } from "./shemas"
 
 interface ReferralRoute {
   Body: ReferralInput
@@ -19,10 +19,10 @@ interface ReferralStatusRoute {
   }
 }
 
-export async function registerReferralRoute(fastify: FastifyInstance, opts: { referalService: ReferalService }) {
+export async function registerReferralRoute(fastify: FastifyInstance, opts: { referralService: ReferralService }) {
   fastify.post<ReferralRoute>("/referral", referralSchema, async (request: FastifyRequest<ReferralRoute>, reply) => {
     try {
-      const result = await opts.referalService.verifyAndCreateReferralRelationship(request.body, fastify.log)
+      const result = await opts.referralService.verifyAndCreateReferralRelationship(request.body, fastify.log)
 
       return reply.status(200).send(result)
     } catch (err: any) {
@@ -34,7 +34,7 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
   fastify.post<GenerateReferralRoute>("/referral/generate", generateReferralSchema, async (request: FastifyRequest<GenerateReferralRoute>, reply) => {
     try {
       const { account } = request.body
-      const result = await opts.referalService.generateNewReferralCode(account, fastify.log)
+      const result = await opts.referralService.generateNewReferralCode(account, fastify.log)
       return reply.status(200).send(result)
     } catch (err: any) {
       request.log.error("Error generating referral code:", err)
@@ -47,7 +47,7 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
   fastify.get<ReferralStatusRoute>("/referral/status", referralStatusSchema, async (request: FastifyRequest<ReferralStatusRoute>, reply) => {
     try {
       const { account } = request.query
-      const result = await opts.referalService.getReferralStatus(account, fastify.log)
+      const result = await opts.referralService.getReferralStatus(account, fastify.log)
       return reply.status(200).send(result)
     } catch (err: any) {
       request.log.error("Error fetching referral status:", err)
