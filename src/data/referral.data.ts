@@ -144,7 +144,7 @@ export class ReferralRepository {
         await this.prismaClient.offchain_boost_user.create({
           data: {
             type: "ONBOARDED",
-            user_address: address,
+            user_address: address.toLowerCase(),
           },
         })
         await this.prismaClient.user.upsert({
