@@ -140,13 +140,21 @@ export class ReferralRepository {
         isUnique = !existing
       } while (!isUnique)
 
-      await this.prismaClient.user.upsert({
-        where: { address: address.toLowerCase() },
-        update: { code },
-        create: {
-          address: address.toLowerCase(),
-          code,
-        },
+      await this.prismaClient.$transaction(async (tx: any) => {
+        await this.prismaClient.offchain_boost_user.create({
+          data: {
+            type: "ONBOARDED",
+            user_address: address,
+          },
+        })
+        await this.prismaClient.user.upsert({
+          where: { address: address.toLowerCase() },
+          update: { code },
+          create: {
+            address: address.toLowerCase(),
+            code,
+          },
+        })
       })
 
       return code
