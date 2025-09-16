@@ -72,6 +72,17 @@ export interface TotalBorrowPoint {
   value: string
 }
 
+export type UserVoteTaskRow = {
+  taskId: number
+  organisation: string
+  url: string
+  protocol: string
+  description: string
+  pointRate: number
+  status: boolean
+  points: number
+}
+
 export type UserTaskRow = {
   taskId: number
   asset: string

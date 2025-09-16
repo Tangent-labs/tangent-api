@@ -2,7 +2,7 @@ import { isAddress } from "viem"
 import { AddressLike } from "ethers"
 import { rangeToMinDate } from "../utils"
 import { PrismaClient } from "@prisma/client"
-import { RawEvent, UserPointsRow, UserTaskRow } from "../types"
+import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types"
 
 export class EventRepository {
   prismaClient: PrismaClient
@@ -103,6 +103,37 @@ export class EventRepository {
 `
 
     return chartData
+  }
+
+  async getUserVoteTasks(userAddress: string): Promise<UserVoteTaskRow[]> {
+    const addr = userAddress.toLowerCase()
+
+    const rows = await this.prismaClient.$queryRaw<UserVoteTaskRow[]>`
+    WITH agg AS (
+      SELECT
+        vote_task_id,
+        COUNT(*)::bigint                         AS cnt,
+        COALESCE(SUM(points), 0)::bigint         AS points_sum
+      FROM points.user_vote_tasks
+      WHERE lower(user_address) = ${addr}
+      GROUP BY vote_task_id
+    )
+    SELECT
+      t.id::bigint                               AS "taskId",
+      t.name                                     AS "name",
+      t.organisation                             AS "organisation",
+      t.protocol                                 AS "protocol",
+      t.url                                      AS "url",
+      t.description                              AS "description",
+      t.point_rate                               AS "pointRate",
+      (COALESCE(agg.cnt, 0) > 0)                 AS "status",
+      COALESCE(agg.points_sum, 0)::bigint        AS "points"
+    FROM points.vote_task t
+    LEFT JOIN agg ON agg.vote_task_id = t.id
+    ORDER BY t.id;
+  `
+
+    return rows
   }
 
   async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {

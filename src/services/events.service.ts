@@ -34,6 +34,16 @@ export class EventsService {
     }
   }
 
+  async getUserVoteTasks(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getUserVoteTasks(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
   async getUserTasks(userAddress: string) {
     try {
       const result = await this.eventsRepo.getUserTasks(userAddress)

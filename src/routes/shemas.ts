@@ -256,3 +256,51 @@ export const referralStatusSchema: RouteShorthandOptions = {
     },
   },
 }
+
+const leaderboardItem = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    rank: { type: "integer" },
+    address: { type: "string" },
+    pts: { type: "integer" },
+  },
+  required: ["rank", "address", "pts"],
+}
+
+export const leaderboardsSchema: RouteShorthandOptions = {
+  schema: {
+    response: {
+      200: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          lpLeaderboard: {
+            type: "array",
+            items: leaderboardItem,
+          },
+          voteLeaderboard: {
+            type: "array",
+            items: leaderboardItem,
+          },
+        },
+        required: ["lpLeaderboard", "voteLeaderboard"],
+      },
+      400: {
+        type: "object",
+        properties: { error: { type: "string" } },
+        additionalProperties: false,
+      },
+      404: {
+        type: "object",
+        properties: { error: { type: "string" } },
+        additionalProperties: false,
+      },
+      500: {
+        type: "object",
+        properties: { error: { type: "string" } },
+        additionalProperties: false,
+      },
+    },
+  },
+}

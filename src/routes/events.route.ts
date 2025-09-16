@@ -38,7 +38,18 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch user tasks" })
+      return reply.status(500).send({ error: "Failed to fetch user lp tasks" })
+    }
+  })
+
+  fastify.get<UserTasks>("/tasks/vote/:userAddress", userTasksSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getUserVoteTasks(userAddress)
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user vote tasks" })
     }
   })
 

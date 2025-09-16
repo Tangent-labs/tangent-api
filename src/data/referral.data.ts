@@ -140,7 +140,7 @@ export class ReferralRepository {
         isUnique = !existing
       } while (!isUnique)
 
-      await this.prismaClient.$transaction(async (tx: any) => {
+      await this.prismaClient.$transaction(async () => {
         await this.prismaClient.offchain_boost_user.create({
           data: {
             type: "ONBOARDED",
