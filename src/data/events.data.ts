@@ -25,46 +25,46 @@ export class EventRepository {
 
     const rows = await this.prismaClient.$queryRaw<RawEvent[]>`
       SELECT 'borrow' AS label, '0' AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.borrow WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.deposit WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.deposit WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_deposit WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.zap_deposit WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.deposit_and_borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.deposit_and_borrow WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_deposit_and_borrow WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.zap_deposit_and_borrow WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'withdraw' AS label, withdrawn_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.withdraw WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.repay WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.repay WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.repay_and_withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.repay_and_withdraw WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_repay WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.zap_repay WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_repay_and_withdraw WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.zap_repay_and_withdraw WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.leverage WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.leverage WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'zap_leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.zap_leverage WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.zap_leverage WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.liquidate WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.liquidate WHERE account = ${account} AND market_id = ${market_id}
       UNION ALL
       SELECT 'self_liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
-      FROM events.self_liquidate WHERE LOWER(account) = LOWER(${account}) AND market_id = ${market_id}
+      FROM events.self_liquidate WHERE account = ${account} AND market_id = ${market_id}
       ORDER BY date DESC
     `
     return rows

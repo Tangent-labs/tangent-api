@@ -8,7 +8,7 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     try {
       const { account, market } = request.params
 
-      const rawEvents = await opts.eventsService.getEventsByAccount(account, market)
+      const rawEvents = await opts.eventsService.getEventsByAccount(account.toLowerCase(), market)
 
       const transformedEvents = opts.eventsService.transformEvents(rawEvents)
       fastify.log.info(`Query returned ${transformedEvents.length} rows for account ${account}: ${JSON.stringify(transformedEvents)}`)
