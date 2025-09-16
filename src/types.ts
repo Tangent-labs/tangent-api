@@ -1,3 +1,5 @@
+import { Address } from "viem"
+
 export interface ReferralData {
   code: string
   user_id: string
@@ -99,4 +101,11 @@ export type UserPointsRow = {
   referral_points: bigint
   total_points: bigint
   daily_rate: bigint
+}
+
+export type GodsonsLeaderboardItem = {
+  rank: number
+  address: Address
+  lpPoints: number
+  votePts: number
 }

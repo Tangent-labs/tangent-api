@@ -1,3 +1,4 @@
+import { Address } from "viem"
 import { LeaderboardRepository } from "../data/leaderboard.data"
 
 export class LeaderboardService {
@@ -13,5 +14,9 @@ export class LeaderboardService {
 
   async fetchVoteLeaderboard() {
     return await this.leaderboardRepository.fetchVoteLeaderboard()
+  }
+
+  async fetchGodsonsLeaderboard(userAddress: Address) {
+    return await this.leaderboardRepository.fetchGodsonsLeaderboard(userAddress)
   }
 }

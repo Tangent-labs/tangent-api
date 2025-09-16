@@ -158,7 +158,7 @@ export const referralSchema: RouteShorthandOptions = {
         },
         signature: { type: "string", pattern: "^0x[a-fA-F0-9]{130}$" },
         account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-        now: { type: "string", pattern: "date-time" },
+        now: { type: "string", format: "date-time" },
       },
     },
     response: {
@@ -301,6 +301,35 @@ export const leaderboardsSchema: RouteShorthandOptions = {
         properties: { error: { type: "string" } },
         additionalProperties: false,
       },
+    },
+  },
+}
+
+const item = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    rank: { type: "integer" },
+    address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+    lpPoints: { type: "integer" },
+    votePts: { type: "integer" },
+  },
+  required: ["rank", "address", "lpPoints", "votePts"],
+} as const
+
+export const godsonsLeaderboardSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      properties: {
+        address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+      required: ["address"],
+    },
+    response: {
+      200: { type: "array", items: item },
+      400: { type: "object", additionalProperties: false, properties: { error: { type: "string" } } },
+      500: { type: "object", additionalProperties: false, properties: { error: { type: "string" } } },
     },
   },
 }
