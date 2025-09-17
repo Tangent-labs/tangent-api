@@ -55,9 +55,9 @@ export class EventsService {
     }
   }
 
-  async getUserPoints(userAddress: string, dateFrom: string) {
+  async getLpUserPoints(userAddress: string, dateFrom: string) {
     try {
-      const result = await this.eventsRepo.getUserPoints(userAddress, dateFrom)
+      const result = await this.eventsRepo.getLpUserPoints(userAddress, dateFrom)
 
       return result
     } catch (err) {

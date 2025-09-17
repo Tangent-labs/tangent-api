@@ -114,7 +114,7 @@ export class EventRepository {
         vote_task_id,
         COUNT(*)::bigint                         AS cnt,
         COALESCE(SUM(points), 0)::bigint         AS points_sum
-      FROM points.user_vote_tasks
+      FROM points.vote_user_tasks
       WHERE lower(user_address) = ${addr}
       GROUP BY vote_task_id
     )
@@ -142,14 +142,14 @@ export class EventRepository {
     const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
-    FROM points.user_tasks
+    FROM points.lp_user_tasks
     WHERE lower(user_address) = ${addr}
       AND closed IS NULL
     GROUP BY task_id
   ),
   up_sum AS (
     SELECT task_id, points AS points_sum
-    FROM points.user_points
+    FROM points.lp_user_points
     WHERE lower(user_address) = ${addr}
   )
   SELECT
@@ -161,7 +161,7 @@ export class EventRepository {
     t.point_rate          AS "pointRate",
     (ut_open.open_count > 0)             AS "status",
     COALESCE(up_sum.points_sum, 0)       AS "points"
-  FROM points.task t
+  FROM points.lp_task t
   LEFT JOIN ut_open  ON ut_open.task_id = t.id
   LEFT JOIN up_sum   ON up_sum.task_id  = t.id
   ORDER BY t.id;
@@ -170,42 +170,29 @@ export class EventRepository {
     return rows
   }
 
-  async getUserPoints(
+  async getLpUserPoints(
     userAddress: string,
     now: string
   ): Promise<{
-    totalPoints: bigint
-    basePoints: bigint
-    referralPoints: bigint
-    dailyRate: bigint
+    lpTotalPoints: bigint
+    lpDailyRate: bigint
   }> {
     const addr = userAddress.toLowerCase()
 
-    const computedPoints = await this.prismaClient.$queryRaw<UserPointsRow[]>`
-    WITH base AS (
-      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
-      FROM points.user_points up
-      WHERE up.user_address = ${addr}
-    )
-    SELECT
-      b.base_points,
-      COALESCE(u.referral_points, 0)::bigint AS referral_points,
-      b.base_points + COALESCE(u.referral_points, 0)::bigint AS total_points
-    FROM base b
-    LEFT JOIN "global"."user" u
-      ON u.address = ${addr}
-    LIMIT 1;
-  `
-
-    const totals = computedPoints[0] ?? {
-      base_points: 0n,
-      referral_points: 0n,
-      total_points: 0n,
-    }
-
-    const rate = await this.prismaClient.$queryRaw<{ daily_rate: bigint }[]>`
+    const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
     WITH me AS (
       SELECT ${addr}::text AS address
+    ),
+    base AS (
+      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
+      FROM points.lp_user_points up
+      WHERE up.user_address = (SELECT address FROM me)
+    ),
+    referral AS (
+      SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
+      FROM "global"."user" u
+      WHERE u.address = (SELECT address FROM me)
+      LIMIT 1
     ),
     boost AS (
       SELECT COALESCE((
@@ -223,8 +210,8 @@ export class EventRepository {
         ut.amount,
         t.point_rate::numeric   AS point_rate,
         t.token_address::text   AS token_address
-      FROM points.user_tasks ut
-      JOIN points.task t ON t.id = ut.task_id
+      FROM points.lp_user_tasks ut
+      JOIN points.lp_task t ON t.id = ut.task_id
       WHERE ut.user_address = (SELECT address FROM me)
         AND ut.closed IS NULL
     ),
@@ -244,29 +231,29 @@ export class EventRepository {
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
+    ),
+    daily AS (
+      SELECT
+        COALESCE(
+          ROUND(
+            SUM(amount_tokens * price_usd * 86400 * point_rate * boost_m)
+          ), 0
+        )::bigint AS daily_rate
+      FROM per_task
     )
     SELECT
-      COALESCE(
-        ROUND(
-          SUM(
-            amount_tokens
-            * price_usd
-            * 86400
-            * point_rate
-            * boost_m
-          )
-        ), 0
-      )::bigint AS daily_rate
-    FROM per_task;
+      (SELECT base_points FROM base)
+      + COALESCE((SELECT referral_points FROM referral), 0)::bigint
+      AS total_points,
+      (SELECT daily_rate FROM daily) AS daily_rate;
   `
 
-    const dailyRate = rate[0]?.daily_rate ?? 0n
+    const totalPoints = rows[0]?.total_points ?? 0n
+    const dailyRate = rows[0]?.daily_rate ?? 0n
 
     return {
-      basePoints: totals.base_points,
-      referralPoints: totals.referral_points,
-      totalPoints: totals.total_points,
-      dailyRate,
+      lpTotalPoints: totalPoints,
+      lpDailyRate: dailyRate,
     }
   }
 }

@@ -13,7 +13,7 @@ export class LeaderboardRepository {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
     SELECT "user_address",
            SUM(COALESCE("points", 0) + COALESCE("booster_points", 0)) AS pts
-    FROM "points"."user_points"
+    FROM "points"."lp_user_points"
     GROUP BY "user_address"
     ORDER BY pts DESC
     LIMIT 5;
@@ -30,7 +30,7 @@ export class LeaderboardRepository {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
         SELECT "user_address",
                SUM(COALESCE("points", 0)) AS pts
-        FROM "points"."user_vote_tasks"
+        FROM "points"."vote_user_tasks"
         GROUP BY "user_address"
         ORDER BY pts DESC
         LIMIT 5;
@@ -66,14 +66,14 @@ export class LeaderboardRepository {
       lp AS (
         SELECT up."user_address",
                SUM(COALESCE(up."points", 0) + COALESCE(up."booster_points", 0))::bigint AS lp_pts
-        FROM "points"."user_points" up
+        FROM "points"."lp_user_points" up
         WHERE up."user_address" IN (SELECT "address" FROM godsons)
         GROUP BY up."user_address"
       ),
       vote AS (
         SELECT vt."user_address",
                SUM(COALESCE(vt."points", 0))::bigint AS vote_pts
-        FROM "points"."user_vote_tasks" vt
+        FROM "points"."vote_user_tasks" vt
         WHERE vt."user_address" IN (SELECT "address" FROM godsons)
         GROUP BY vt."user_address"
       ),

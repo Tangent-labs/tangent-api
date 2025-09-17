@@ -58,10 +58,8 @@ export const userPointsSchema: RouteShorthandOptions = {
       200: {
         type: "object",
         properties: {
-          totalPoints: { type: "number" },
-          basePoints: { type: "number" },
-          referralPoints: { type: "number" },
-          dailyRate: { type: "number" },
+          lpTotalPoints: { type: "number" },
+          lpDailyRate: { type: "number" },
         },
       },
       500: {
