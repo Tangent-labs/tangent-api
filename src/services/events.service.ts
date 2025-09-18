@@ -65,4 +65,15 @@ export class EventsService {
       throw err
     }
   }
+
+  async getVoteUserPoints(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getVoteUserPoints(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
 }

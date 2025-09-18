@@ -170,6 +170,36 @@ export class EventRepository {
     return rows
   }
 
+  async getVoteUserPoints(userAddress: string): Promise<{
+    voteTotalPoints: bigint
+  }> {
+    const addr = userAddress.toLowerCase()
+
+    const computedPoints = await this.prismaClient.$queryRaw<UserPointsRow[]>`
+    WITH base AS (
+      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
+      FROM points.vote_user_tasks up
+      WHERE up.user_address = ${addr}
+    )
+    SELECT
+      b.base_points,
+      COALESCE(u.vote_referral_points, 0)::bigint AS vote_referral_points,
+      b.base_points + COALESCE(u.vote_referral_points, 0)::bigint AS total_points
+    FROM base b
+    LEFT JOIN "global"."user" u
+      ON u.address = ${addr}
+    LIMIT 1;
+  `
+
+    const totals = computedPoints[0] ?? {
+      base_points: 0n,
+      referral_points: 0n,
+      total_points: 0n,
+    }
+
+    return { voteTotalPoints: totals?.total_points }
+  }
+
   async getLpUserPoints(
     userAddress: string,
     now: string
