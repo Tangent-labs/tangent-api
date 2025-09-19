@@ -210,7 +210,7 @@ export class EventRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
-    base AS (
+    WITH base AS (
       SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
       FROM points.lp_user_points up
       WHERE up.user_address = ${addr}
