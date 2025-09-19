@@ -210,25 +210,22 @@ export class EventRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
-    WITH me AS (
-      SELECT ${addr}::text AS address
-    ),
     base AS (
       SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
       FROM points.lp_user_points up
-      WHERE up.user_address = (SELECT address FROM me)
+      WHERE up.user_address = ${addr}
     ),
     referral AS (
       SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
       FROM "global"."user" u
-      WHERE u.address = (SELECT address FROM me)
+      WHERE u.address = ${addr}
       LIMIT 1
     ),
     boost AS (
       SELECT COALESCE((
         SELECT ub.multiplier::numeric
         FROM points.user_boost ub
-        WHERE ub.user_address = (SELECT address FROM me)
+        WHERE ub.user_address = ${addr}
           AND ub.start_at <= ${now}::timestamp
           AND (ub.end_at IS NULL)
         ORDER BY ub.start_at DESC
@@ -242,7 +239,7 @@ export class EventRepository {
         t.token_address::text   AS token_address
       FROM points.lp_user_tasks ut
       JOIN points.lp_task t ON t.id = ut.task_id
-      WHERE ut.user_address = (SELECT address FROM me)
+      WHERE ut.user_address = ${addr}
         AND ut.closed IS NULL
     ),
     per_task AS (
