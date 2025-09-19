@@ -44,6 +44,7 @@ export class EventsService {
       throw err
     }
   }
+
   async getUserTasks(userAddress: string) {
     try {
       const result = await this.eventsRepo.getUserTasks(userAddress)
