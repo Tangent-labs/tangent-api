@@ -118,6 +118,7 @@ export const userTasksSchema: RouteShorthandOptions = {
             url: { type: "string" },
             protocol: { type: "string" },
             description: { type: "string" },
+            organisation: { type: "string" },
             pointRate: { type: "number" },
             status: { type: "boolean" },
             points: { type: "number" },
