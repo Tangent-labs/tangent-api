@@ -11,13 +11,8 @@ export class LeaderboardRepository {
 
   async fetchLpLeaderboard() {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
-    SELECT "user_address",
-           SUM(COALESCE("points", 0) + COALESCE("booster_points", 0)) AS pts
-    FROM "points"."lp_user_points"
-    GROUP BY "user_address"
-    ORDER BY pts DESC
-    LIMIT 5;
-  `
+      SELECT user_address, pts FROM points.view_leaderboard_lp;
+    `
 
     return rows.map((r, i) => ({
       rank: i + 1,
@@ -28,13 +23,8 @@ export class LeaderboardRepository {
 
   async fetchVoteLeaderboard() {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
-        SELECT "user_address",
-               SUM(COALESCE("points", 0)) AS pts
-        FROM "points"."vote_user_tasks"
-        GROUP BY "user_address"
-        ORDER BY pts DESC
-        LIMIT 5;
-      `
+      SELECT user_address, pts FROM points.view_leaderboard_vote;
+    `
 
     return rows.map((r, i) => ({
       rank: i + 1,

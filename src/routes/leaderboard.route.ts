@@ -11,7 +11,7 @@ export async function registerLeaderboardRoutes(fastify: FastifyInstance, opts: 
 
       return reply.status(200).send({ lpLeaderboard, voteLeaderboard })
     } catch (err: any) {
-      request.log.error("Error processing lp leaderboard :", err)
+      request.log.error("Error processing leaderboards :", err)
       return reply.status(err.message.includes("Invalid") ? 400 : 500).send({ error: err.message })
     }
   })
