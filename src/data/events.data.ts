@@ -170,6 +170,46 @@ export class EventRepository {
     return rows
   }
 
+  async getUserRefereesPoints(userAddress: string): Promise<{
+    lpPoints: bigint
+    votePoints: bigint
+  }> {
+    const address = userAddress.toLowerCase()
+
+    const rows = await this.prismaClient.$queryRaw<Array<{ lp_points: bigint | null; vote_points: bigint | null }>>`
+    WITH godfather AS (
+      SELECT id
+      FROM "global"."user"
+      WHERE address = ${address}
+      LIMIT 1
+    ),
+    godsons AS (
+      SELECT u.address
+      FROM "global"."referral_usages" ru
+      JOIN "global"."user" u
+        ON u.id = ru.godson_id
+      WHERE ru.godfather_id = (SELECT id FROM godfather)
+    ),
+    lp AS (
+      SELECT COALESCE(SUM(points) + SUM(booster_points), 0) AS lp_points
+      FROM "points"."lp_user_points"
+      WHERE user_address IN (SELECT address FROM godsons)
+    ),
+    vt AS (
+      SELECT COALESCE(SUM(points), 0) AS vote_points
+      FROM "points"."vote_user_tasks"
+      WHERE user_address IN (SELECT address FROM godsons)
+    )
+    SELECT lp.lp_points, vt.vote_points
+    FROM lp CROSS JOIN vt;
+  `
+
+    const lpPoints = rows?.[0]?.lp_points ?? 0n
+    const votePoints = rows?.[0]?.vote_points ?? 0n
+
+    return { lpPoints, votePoints }
+  }
+
   async getVoteUserPoints(userAddress: string): Promise<{
     voteTotalPoints: bigint
   }> {

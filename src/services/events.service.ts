@@ -77,4 +77,15 @@ export class EventsService {
       throw err
     }
   }
+
+  async getUserRefereesPoints(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getUserRefereesPoints(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
 }
