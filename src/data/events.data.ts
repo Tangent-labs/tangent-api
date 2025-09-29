@@ -115,7 +115,7 @@ export class EventRepository {
         COUNT(*)::bigint                         AS cnt,
         COALESCE(SUM(points), 0)::bigint         AS points_sum
       FROM points.vote_user_tasks
-      WHERE lower(user_address) = ${addr}
+      WHERE user_address = ${addr}
       GROUP BY vote_task_id
     )
     SELECT
@@ -143,14 +143,14 @@ export class EventRepository {
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
     FROM points.lp_user_tasks
-    WHERE lower(user_address) = ${addr}
+    WHERE user_address = ${addr}
       AND closed IS NULL
     GROUP BY task_id
   ),
   up_sum AS (
     SELECT task_id, points AS points_sum
     FROM points.lp_user_points
-    WHERE lower(user_address) = ${addr}
+    WHERE user_address = ${addr}
   )
   SELECT
     t.id                  AS "taskId",
