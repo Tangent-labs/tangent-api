@@ -29,3 +29,5 @@ export const rangeToMinDate = (range: string, endDate: string | number): string 
 
   return base.toISOString().split(".")[0] + "Z"
 }
+
+
