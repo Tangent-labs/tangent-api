@@ -10,6 +10,9 @@ import { EventsService } from "./services/events.service"
 import { registerEventsRoute } from "./routes/events.route"
 import { ReferralService } from "./services/referral.service"
 import { registerReferralRoute } from "./routes/referral.route"
+import { LeaderboardService } from "./services/leaderboard.service"
+import { LeaderboardRepository } from "./data/leaderboard.data"
+import { registerLeaderboardRoutes } from "./routes/leaderboard.route"
 
 dotenv.config()
 
@@ -35,6 +38,10 @@ fastify.register(async (f) => {
   const referralRepository = new ReferralRepository(f.prisma)
   const referralService = new ReferralService(referralRepository)
 
+  const leaderboardRepository = new LeaderboardRepository(f.prisma)
+  const leaderboardService = new LeaderboardService(leaderboardRepository)
+
+  fastify.register(registerLeaderboardRoutes, { leaderboardService })
   fastify.register(registerReferralRoute, { referralService })
   fastify.register(registerEventsRoute, { eventsService })
 })

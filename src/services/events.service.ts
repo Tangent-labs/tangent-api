@@ -34,6 +34,17 @@ export class EventsService {
     }
   }
 
+  async getUserVoteTasks(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getUserVoteTasks(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getUserTasks(userAddress: string) {
     try {
       const result = await this.eventsRepo.getUserTasks(userAddress)
@@ -45,9 +56,31 @@ export class EventsService {
     }
   }
 
-  async getUserPoints(userAddress: string, dateFrom: string) {
+  async getLpUserPoints(userAddress: string, dateFrom: string) {
     try {
-      const result = await this.eventsRepo.getUserPoints(userAddress, dateFrom)
+      const result = await this.eventsRepo.getLpUserPoints(userAddress, dateFrom)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getVoteUserPoints(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getVoteUserPoints(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getUserRefereesPoints(userAddress: string) {
+    try {
+      const result = await this.eventsRepo.getUserRefereesPoints(userAddress)
 
       return result
     } catch (err) {

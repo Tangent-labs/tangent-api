@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
 import { EventsService } from "../services/events.service"
 import { EventsRoute, GetHistoricalMarketDataRoute, UserPoints, UserTasks } from "../types"
-import { eventsSchema, getMarketHistoricalMarketDataSchema, userPointsSchema, userTasksSchema } from "./shemas"
+import { eventsSchema, getMarketHistoricalMarketDataSchema, lpPointsSchema, refereesPointsSchema, userTasksSchema, votePointsSchema } from "./shemas"
 
 export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventsService: EventsService }) {
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
@@ -38,14 +38,47 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch user tasks" })
+      return reply.status(500).send({ error: "Failed to fetch user lp tasks" })
     }
   })
 
-  fastify.get<UserPoints>("/points/:userAddress/:dateFrom", userPointsSchema, async (request, reply) => {
+  fastify.get<UserTasks>("/tasks/vote/:userAddress", userTasksSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getUserVoteTasks(userAddress)
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user vote tasks" })
+    }
+  })
+
+  fastify.get<UserPoints>("/lp-points/:userAddress/:dateFrom", lpPointsSchema, async (request, reply) => {
     try {
       const { userAddress, dateFrom } = request.params
-      const result = await opts.eventsService.getUserPoints(userAddress, dateFrom)
+      const result = await opts.eventsService.getLpUserPoints(userAddress, dateFrom)
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user points" })
+    }
+  })
+
+  fastify.get<UserPoints>("/vote-points/:userAddress", votePointsSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getVoteUserPoints(userAddress)
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user points" })
+    }
+  })
+
+  fastify.get<UserPoints>("/refereess/points/:userAddress", refereesPointsSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getUserRefereesPoints(userAddress)
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)

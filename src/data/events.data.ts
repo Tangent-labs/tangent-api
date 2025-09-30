@@ -2,7 +2,7 @@ import { isAddress } from "viem"
 import { AddressLike } from "ethers"
 import { rangeToMinDate } from "../utils"
 import { PrismaClient } from "@prisma/client"
-import { RawEvent, UserPointsRow, UserTaskRow } from "../types"
+import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types"
 
 export class EventRepository {
   prismaClient: PrismaClient
@@ -105,21 +105,52 @@ export class EventRepository {
     return chartData
   }
 
+  async getUserVoteTasks(userAddress: string): Promise<UserVoteTaskRow[]> {
+    const addr = userAddress.toLowerCase()
+
+    const rows = await this.prismaClient.$queryRaw<UserVoteTaskRow[]>`
+    WITH agg AS (
+      SELECT
+        vote_task_id,
+        COUNT(*)::bigint                         AS cnt,
+        COALESCE(SUM(points), 0)::bigint         AS points_sum
+      FROM points.vote_user_tasks
+      WHERE user_address = ${addr}
+      GROUP BY vote_task_id
+    )
+    SELECT
+      t.id::bigint                               AS "taskId",
+      t.name                                     AS "name",
+      t.organisation                             AS "organisation",
+      t.protocol                                 AS "protocol",
+      t.url                                      AS "url",
+      t.description                              AS "description",
+      t.point_rate                               AS "pointRate",
+      (COALESCE(agg.cnt, 0) > 0)                 AS "status",
+      COALESCE(agg.points_sum, 0)::bigint        AS "points"
+    FROM points.vote_task t
+    LEFT JOIN agg ON agg.vote_task_id = t.id
+    ORDER BY t.id;
+  `
+
+    return rows
+  }
+
   async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
-    FROM points.user_tasks
-    WHERE lower(user_address) = ${addr}
+    FROM points.lp_user_tasks
+    WHERE user_address = ${addr}
       AND closed IS NULL
     GROUP BY task_id
   ),
   up_sum AS (
     SELECT task_id, points AS points_sum
-    FROM points.user_points
-    WHERE lower(user_address) = ${addr}
+    FROM points.lp_user_points
+    WHERE user_address = ${addr}
   )
   SELECT
     t.id                  AS "taskId",
@@ -130,7 +161,7 @@ export class EventRepository {
     t.point_rate          AS "pointRate",
     (ut_open.open_count > 0)             AS "status",
     COALESCE(up_sum.points_sum, 0)       AS "points"
-  FROM points.task t
+  FROM points.lp_task t
   LEFT JOIN ut_open  ON ut_open.task_id = t.id
   LEFT JOIN up_sum   ON up_sum.task_id  = t.id
   ORDER BY t.id;
@@ -139,27 +170,61 @@ export class EventRepository {
     return rows
   }
 
-  async getUserPoints(
-    userAddress: string,
-    now: string
-  ): Promise<{
-    totalPoints: bigint
-    basePoints: bigint
-    referralPoints: bigint
-    dailyRate: bigint
+  async getUserRefereesPoints(userAddress: string): Promise<{
+    lpPoints: bigint
+    votePoints: bigint
+  }> {
+    const address = userAddress.toLowerCase()
+
+    const rows = await this.prismaClient.$queryRaw<Array<{ lp_points: bigint | null; vote_points: bigint | null }>>`
+    WITH godfather AS (
+      SELECT id
+      FROM "global"."user"
+      WHERE address = ${address}
+      LIMIT 1
+    ),
+    godsons AS (
+      SELECT u.address
+      FROM "global"."referral_usages" ru
+      JOIN "global"."user" u
+        ON u.id = ru.godson_id
+      WHERE ru.godfather_id = (SELECT id FROM godfather)
+    ),
+    lp AS (
+      SELECT COALESCE(SUM(points) + SUM(booster_points), 0) AS lp_points
+      FROM "points"."lp_user_points"
+      WHERE user_address IN (SELECT address FROM godsons)
+    ),
+    vt AS (
+      SELECT COALESCE(SUM(points), 0) AS vote_points
+      FROM "points"."vote_user_tasks"
+      WHERE user_address IN (SELECT address FROM godsons)
+    )
+    SELECT lp.lp_points, vt.vote_points
+    FROM lp CROSS JOIN vt;
+  `
+
+    const lpPoints = rows?.[0]?.lp_points ?? 0n
+    const votePoints = rows?.[0]?.vote_points ?? 0n
+
+    return { lpPoints, votePoints }
+  }
+
+  async getVoteUserPoints(userAddress: string): Promise<{
+    voteTotalPoints: bigint
   }> {
     const addr = userAddress.toLowerCase()
 
     const computedPoints = await this.prismaClient.$queryRaw<UserPointsRow[]>`
     WITH base AS (
       SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
-      FROM points.user_points up
+      FROM points.vote_user_tasks up
       WHERE up.user_address = ${addr}
     )
     SELECT
       b.base_points,
-      COALESCE(u.referral_points, 0)::bigint AS referral_points,
-      b.base_points + COALESCE(u.referral_points, 0)::bigint AS total_points
+      COALESCE(u.vote_referral_points, 0)::bigint AS vote_referral_points,
+      b.base_points + COALESCE(u.vote_referral_points, 0)::bigint AS total_points
     FROM base b
     LEFT JOIN "global"."user" u
       ON u.address = ${addr}
@@ -172,15 +237,35 @@ export class EventRepository {
       total_points: 0n,
     }
 
-    const rate = await this.prismaClient.$queryRaw<{ daily_rate: bigint }[]>`
-    WITH me AS (
-      SELECT ${addr}::text AS address
+    return { voteTotalPoints: totals?.total_points }
+  }
+
+  async getLpUserPoints(
+    userAddress: string,
+    now: string
+  ): Promise<{
+    lpTotalPoints: bigint
+    lpDailyRate: bigint
+  }> {
+    const addr = userAddress.toLowerCase()
+
+    const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
+    WITH base AS (
+      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
+      FROM points.lp_user_points up
+      WHERE up.user_address = ${addr}
+    ),
+    referral AS (
+      SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
+      FROM "global"."user" u
+      WHERE u.address = ${addr}
+      LIMIT 1
     ),
     boost AS (
       SELECT COALESCE((
         SELECT ub.multiplier::numeric
         FROM points.user_boost ub
-        WHERE ub.user_address = (SELECT address FROM me)
+        WHERE ub.user_address = ${addr}
           AND ub.start_at <= ${now}::timestamp
           AND (ub.end_at IS NULL)
         ORDER BY ub.start_at DESC
@@ -192,9 +277,9 @@ export class EventRepository {
         ut.amount,
         t.point_rate::numeric   AS point_rate,
         t.token_address::text   AS token_address
-      FROM points.user_tasks ut
-      JOIN points.task t ON t.id = ut.task_id
-      WHERE ut.user_address = (SELECT address FROM me)
+      FROM points.lp_user_tasks ut
+      JOIN points.lp_task t ON t.id = ut.task_id
+      WHERE ut.user_address = ${addr}
         AND ut.closed IS NULL
     ),
     per_task AS (
@@ -213,29 +298,29 @@ export class EventRepository {
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
+    ),
+    daily AS (
+      SELECT
+        COALESCE(
+          ROUND(
+            SUM(amount_tokens * price_usd * 86400 * point_rate * boost_m)
+          ), 0
+        )::bigint AS daily_rate
+      FROM per_task
     )
     SELECT
-      COALESCE(
-        ROUND(
-          SUM(
-            amount_tokens
-            * price_usd
-            * 86400
-            * point_rate
-            * boost_m
-          )
-        ), 0
-      )::bigint AS daily_rate
-    FROM per_task;
+      (SELECT base_points FROM base)
+      + COALESCE((SELECT referral_points FROM referral), 0)::bigint
+      AS total_points,
+      (SELECT daily_rate FROM daily) AS daily_rate;
   `
 
-    const dailyRate = rate[0]?.daily_rate ?? 0n
+    const totalPoints = rows[0]?.total_points ?? 0n
+    const dailyRate = rows[0]?.daily_rate ?? 0n
 
     return {
-      basePoints: totals.base_points,
-      referralPoints: totals.referral_points,
-      totalPoints: totals.total_points,
-      dailyRate,
+      lpTotalPoints: totalPoints,
+      lpDailyRate: dailyRate,
     }
   }
 }
