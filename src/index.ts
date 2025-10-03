@@ -2,6 +2,9 @@ import dotenv from "dotenv"
 import fastifyCors from "@fastify/cors"
 import Postgres from "@fastify/postgres"
 import fastifyRateLimit from "@fastify/rate-limit"
+import swagger from "@fastify/swagger";
+import swaggerUI from "@fastify/swagger-ui";
+
 import Fastify, { FastifyInstance } from "fastify"
 
 import prismaPlugin from "./plugins/prisma.js"
@@ -21,6 +24,30 @@ const fastify: FastifyInstance = Fastify({ logger: true })
 
 // Register plugins
 fastify.register(prismaPlugin)
+
+// 1️⃣ Generate OpenAPI spec
+fastify.register(swagger, {
+  openapi: {
+    info: {
+      title: "Fastify TS API",
+      description: "A Fastify API with OpenAPI 3 and Swagger UI",
+      version: "1.0.0",
+    },
+    servers: [
+      { url: "http://localhost:3100" }
+    ],
+  },
+});
+
+fastify.register(swaggerUI, {
+  routePrefix: "/docs", // Swagger UI available at http://localhost:3000/docs
+  uiConfig: {
+    docExpansion: "list",   // optional UI settings
+    deepLinking: true,
+  },
+  // No 'exposeRoute', it's enabled by default
+});
+
 fastify.register(Postgres, {
   connectionString: process.env.DATABASE_URL,
 })
