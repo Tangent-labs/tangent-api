@@ -385,3 +385,30 @@ export const godsonsLeaderboardSchema: RouteShorthandOptions = {
     },
   },
 }
+
+export const totalSupplySchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["dateTo", "dateFrom", "tokenAddress"],
+      properties: {
+        dateTo: { type: "string", format: "date-time" },
+        dateFrom: { type: "string", format: "date-time" },
+        tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            timestamp: { type: "string", format: "date-time" },
+            amount: { type: "string" },
+          },
+          required: ["timestamp", "amount"],
+        },
+      },
+    },
+  },
+}

@@ -4,15 +4,21 @@ import Postgres from "@fastify/postgres"
 import prismaPlugin from "./plugins/prisma"
 import fastifyRateLimit from "@fastify/rate-limit"
 import Fastify, { FastifyInstance } from "fastify"
+
 import { EventRepository } from "./data/events.data"
 import { ReferralRepository } from "./data/referral.data"
-import { EventsService } from "./services/events.service"
-import { registerEventsRoute } from "./routes/events.route"
-import { ReferralService } from "./services/referral.service"
-import { registerReferralRoute } from "./routes/referral.route"
-import { LeaderboardService } from "./services/leaderboard.service"
 import { LeaderboardRepository } from "./data/leaderboard.data"
+import { ProtocolMetricsRepository } from "./data/protocol_metrics.data"
+
+import { registerEventsRoute } from "./routes/events.route"
+import { registerReferralRoute } from "./routes/referral.route"
 import { registerLeaderboardRoutes } from "./routes/leaderboard.route"
+import { registerProtocolMetricsRoute } from "./routes/protocol_metrics.route"
+
+import { EventsService } from "./services/events.service"
+import { ReferralService } from "./services/referral.service"
+import { LeaderboardService } from "./services/leaderboard.service"
+import { ProtocolMetricsService } from "./services/protocol_metrics.service"
 
 dotenv.config()
 
@@ -35,6 +41,9 @@ fastify.register(async (f) => {
   const eventRepository = new EventRepository(f.prisma)
   const eventsService = new EventsService(eventRepository)
 
+  const protocolMetricsRepository = new ProtocolMetricsRepository(f.prisma)
+  const protocolMetricsService = new ProtocolMetricsService(protocolMetricsRepository)
+
   const referralRepository = new ReferralRepository(f.prisma)
   const referralService = new ReferralService(referralRepository)
 
@@ -44,6 +53,7 @@ fastify.register(async (f) => {
   fastify.register(registerLeaderboardRoutes, { leaderboardService })
   fastify.register(registerReferralRoute, { referralService })
   fastify.register(registerEventsRoute, { eventsService })
+  fastify.register(registerProtocolMetricsRoute, { protocolMetricsService })
 })
 
 // Graceful shutdown
