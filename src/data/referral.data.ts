@@ -1,6 +1,6 @@
 import { customAlphabet } from "nanoid"
 import { PrismaClient } from "@prisma/client"
-import { UserData, UserStatus } from "../types"
+import { UserData, UserStatus } from "../types.js"
 
 const nanoid = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 8)
 

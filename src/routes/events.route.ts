@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
-import { EventsService } from "../services/events.service"
-import { EventsRoute, GetHistoricalMarketDataRoute, UserPoints, UserTasks } from "../types"
-import { eventsSchema, getMarketHistoricalMarketDataSchema, lpPointsSchema, refereesPointsSchema, userTasksSchema, votePointsSchema } from "./shemas"
+import { EventsService } from "../services/events.service.js"
+import { EventsRoute, GetHistoricalMarketDataRoute, UserPoints, UserTasks } from "../types.js"
+import { eventsSchema, getMarketHistoricalMarketDataSchema, lpPointsSchema, refereesPointsSchema, userTasksSchema, votePointsSchema } from "./shemas.js"
 
 export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventsService: EventsService }) {
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {

@@ -1,8 +1,9 @@
 import { isAddress } from "viem"
 import { AddressLike } from "ethers"
-import { rangeToMinDate } from "../utils"
 import { PrismaClient } from "@prisma/client"
-import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types"
+
+import { rangeToMinDate } from "../utils.js"
+import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 
 export class EventRepository {
   prismaClient: PrismaClient
