@@ -22,41 +22,70 @@ function mulberry32(seed: number) {
   }
 }
 
-async function main() {
-  const rand = mulberry32(SEED)
+function addDaysUTC(d: Date, days: number) {
+  const nd = new Date(d.getTime())
+  nd.setUTCDate(nd.getUTCDate() + days)
+  return nd
+}
 
+async function main() {
   const start = new Date(`${START_ISO}T00:00:00Z`)
   if (isNaN(start.getTime())) {
     throw new Error(`Invalid start date "${START_ISO}". Use YYYY-MM-DD.`)
   }
 
-  const rows: {
+  // Generate rows for both tokens
+  const tokenIds = [647n, 648n] as const
+
+  const allRows: {
     token_id: bigint
     timestamp: Date
     total_supply: string
   }[] = []
 
-  let supply = BASE_SUPPLY
+  for (let t = 0; t < tokenIds.length; t++) {
+    const tokenId = tokenIds[t]
+    // Give each token its own deterministic PRNG stream
+    const rand = mulberry32(SEED + t)
 
-  for (let i = 0; i < DAYS; i++) {
-    const ts = new Date(start.getTime())
-    ts.setUTCDate(start.getUTCDate() + i)
+    let supply = BASE_SUPPLY
 
-    const sign = rand() < 0.5 ? -1n : 1n
-    const magTokens = BigInt(Math.floor(rand() * Number(MAX_DAILY_CHANGE_TOKENS + 1n)))
-    const delta = sign * magTokens * ONE
+    // Track last week's *target* to enforce +10% weekly growth
+    // Week 0 baseline is BASE_SUPPLY; week 1 target = 1.1 * BASE_SUPPLY, etc.
+    let lastWeekTarget = BASE_SUPPLY
 
-    const next = supply + delta
-    supply = next > 0n ? next : 0n
+    for (let i = 0; i < DAYS; i++) {
+      const ts = addDaysUTC(start, i)
 
-    rows.push({
-      token_id: 639n,
-      timestamp: ts,
-      total_supply: supply.toString(),
-    })
+      // daily random wiggle (can go up or down)
+      const sign = rand() < 0.5 ? -1n : 1n
+      const magTokens = BigInt(Math.floor(rand() * Number(MAX_DAILY_CHANGE_TOKENS + 1n)))
+      const delta = sign * magTokens * ONE
+
+      let next = supply + delta
+      if (next < 0n) next = 0n // floor at zero
+
+      // If today is the end of a 7-day block, force the weekly target:
+      // supply(end of this week) = 110% of last week's target (compounding).
+      const isEndOfWeek = (i + 1) % 7 === 0
+      if (isEndOfWeek) {
+        const target = (lastWeekTarget * 110n) / 100n // exact +10% weekly step
+        next = target
+        lastWeekTarget = target
+      }
+
+      supply = next
+
+      allRows.push({
+        token_id: tokenId,
+        timestamp: ts,
+        total_supply: supply.toString(),
+      })
+    }
   }
-  const result = await prisma.total_supplies.createMany({
-    data: rows,
+
+  await prisma.total_supplies.createMany({
+    data: allRows,
     skipDuplicates: true,
   })
 }
