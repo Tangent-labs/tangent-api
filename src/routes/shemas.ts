@@ -412,3 +412,29 @@ export const totalSupplySchema: RouteShorthandOptions = {
     },
   },
 }
+
+export const aprsSchema: RouteShorthandOptions = {
+  schema: {
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            currentAPR: {
+              type: "object",
+              additionalProperties: { type: "number" },
+            },
+            projectedAPR: {
+              type: "object",
+              additionalProperties: { type: "number" },
+            },
+            marketAddress: { type: "string" },
+            marketName: { type: "string" },
+          },
+          required: ["currentAPR", "projectedAPR", "marketAddress", "marketName"],
+        },
+      },
+    },
+  },
+}

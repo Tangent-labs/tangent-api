@@ -117,3 +117,14 @@ export type GodsonsLeaderboardItem = {
   lpPoints: number
   votePts: number
 }
+
+export type MarketAPR = {
+  currentAPR: {
+    [rewardToken: string]: number
+  }
+  projectedAPR: {
+    [rewardToken: string]: number
+  }
+  marketAddress: string
+  marketName: string
+}

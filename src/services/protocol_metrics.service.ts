@@ -17,4 +17,15 @@ export class ProtocolMetricsService {
       throw err
     }
   }
+
+  async getAPRs() {
+    try {
+      const result = await this.protocolMetricsRepo.getAPRs()
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
 }

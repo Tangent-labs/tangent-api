@@ -1,6 +1,6 @@
 import { TotalSupply } from "../types"
 import { FastifyInstance } from "fastify"
-import { totalSupplySchema } from "./shemas"
+import { aprsSchema, totalSupplySchema } from "./shemas"
 import { ProtocolMetricsService } from "../services/protocol_metrics.service"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
@@ -14,6 +14,17 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err: any) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch total supply" })
+    }
+  })
+
+  fastify.get("/aprs", aprsSchema, async (_, reply) => {
+    try {
+      const APRs = await opts.protocolMetricsService.getAPRs()
+
+      return reply.status(200).send(APRs)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch APRs" })
     }
   })
 }
