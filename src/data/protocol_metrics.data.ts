@@ -18,7 +18,7 @@ export class ProtocolMetricsRepository {
       FROM "global"."total_supplies" ts
       JOIN "points"."tracked_erc20" te
         ON te."id" = ts."token_id"
-      WHERE te."address" = LOWER(${address})
+      WHERE te."address" = ${address}
         AND ts."timestamp" >= ${from}::timestamptz
         AND ts."timestamp" <=  ${to}::timestamptz
       ORDER BY ts."timestamp" ASC
@@ -36,27 +36,15 @@ export class ProtocolMetricsRepository {
         apr_projected: Prisma.JsonValue
       }>
     >`
-      WITH latest AS (
-        SELECT
-          g."market_id",
-          g."timestamp",
-          g."apr_current",
-          g."apr_projected",
-          ROW_NUMBER() OVER (PARTITION BY g."market_id" ORDER BY g."timestamp" DESC) AS rn
-        FROM "global"."market_global_data" g
-      )
       SELECT
         m."contract_name",
         m."contract_address",
         l."timestamp",
         l."apr_current",
         l."apr_projected"
-      FROM latest l
-      JOIN "events"."usg_markets" m
-        ON m."id" = l."market_id"
-      WHERE l.rn = 1
-      ORDER BY m."id" ASC
-    `
+      FROM "events"."usg_markets" m
+      JOIN "global"."latest_global_data" l ON l."market_id" = m."id"
+     `
 
     return rows.map((r) => ({
       currentAPR: (r.apr_current ?? {}) as unknown as Record<string, number>,
