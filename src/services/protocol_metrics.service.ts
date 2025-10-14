@@ -18,9 +18,9 @@ export class ProtocolMetricsService {
     }
   }
 
-  async getAPRs() {
+  async getLastMarketAprs() {
     try {
-      const result = await this.protocolMetricsRepo.getAPRs()
+      const result = await this.protocolMetricsRepo.getLastMarketAprs()
 
       return result
     } catch (err) {

@@ -27,7 +27,7 @@ export class ProtocolMetricsRepository {
     return rows
   }
 
-  async getAPRs(): Promise<MarketAPR[]> {
+  async getLastMarketAprs(): Promise<MarketAPR[]> {
     const rows = await this.prismaClient.$queryRaw<
       Array<{
         contract_name: string

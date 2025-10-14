@@ -19,7 +19,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/aprs", aprsSchema, async (_, reply) => {
     try {
-      const APRs = await opts.protocolMetricsService.getAPRs()
+      const APRs = await opts.protocolMetricsService.getLastMarketAprs()
 
       return reply.status(200).send(APRs)
     } catch (err: any) {
