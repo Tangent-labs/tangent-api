@@ -32,6 +32,14 @@ export interface UserTasks {
   }
 }
 
+export interface TotalSupply {
+  Params: {
+    dateTo: string
+    dateFrom: string
+    tokenAddress: string
+  }
+}
+
 export interface UserPoints {
   Params: {
     userAddress: string
@@ -108,4 +116,15 @@ export type GodsonsLeaderboardItem = {
   address: Address
   lpPoints: number
   votePts: number
+}
+
+export type MarketAPR = {
+  currentAPR: {
+    [rewardToken: string]: number
+  }
+  projectedAPR: {
+    [rewardToken: string]: number
+  }
+  marketAddress: string
+  marketName: string
 }

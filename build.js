@@ -1,11 +1,11 @@
 import { build } from 'esbuild';
-import { readdirSync, cpSync, mkdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { readdirSync } from 'fs';
+import { join } from 'path';
 
 const srcDir = 'src';
 const outDir = 'dist';
 
-// Récupère tous les fichiers .ts dans src (récursif)
+// Récupère tous les fichiers .ts dans src (récursif si besoin)
 function getAllFiles(dir, ext = '.ts') {
     const entries = readdirSync(dir, { withFileTypes: true });
     let files = [];
@@ -22,44 +22,14 @@ function getAllFiles(dir, ext = '.ts') {
 
 const entryPoints = getAllFiles(srcDir);
 
-// Copie tous les fichiers non-TS de src → dist
-function copyAssets(src, dest) {
-    const entries = readdirSync(src, { withFileTypes: true });
-    for (const entry of entries) {
-        const srcPath = join(src, entry.name);
-        const destPath = join(dest, entry.name);
-        if (entry.isDirectory()) {
-            copyAssets(srcPath, destPath);
-        } else if (!entry.name.endsWith('.ts')) {
-            if (!existsSync(dirname(destPath))) {
-                mkdirSync(dirname(destPath), { recursive: true });
-            }
-            cpSync(srcPath, destPath);
-        }
-    }
-}
-
-// Build principal
-async function buildTS() {
-    await build({
-        entryPoints,
-        outdir: outDir,
-        bundle: false,
-        platform: 'node',
-        format: 'esm',
-        target: ['node22'],
-        sourcemap: true,
-        minify: false,
-        loader: {
-            '.json': 'json',
-        },
-    });
-
-    // Copie des assets (JSON, .env, etc.)
-    copyAssets(srcDir, outDir);
-}
-
-buildTS()
+build({
+    entryPoints,
+    outdir: outDir,
+    bundle: false,      // ne pas tout mettre dans un seul fichier
+    platform: 'node',
+    sourcemap: true,
+    minify: false,
+})
     .then(() => console.log('Build completed successfully!'))
     .catch((err) => {
         console.error('Build failed:', err);

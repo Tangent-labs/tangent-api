@@ -17,6 +17,9 @@ import { registerReferralRoute } from "./routes/referral.route.js"
 import { LeaderboardService } from "./services/leaderboard.service.js"
 import { LeaderboardRepository } from "./data/leaderboard.data.js"
 import { registerLeaderboardRoutes } from "./routes/leaderboard.route.js"
+import { ProtocolMetricsRepository } from "./data/protocol_metrics.data.js";
+import { ProtocolMetricsService } from "./services/protocol_metrics.service.js";
+import { registerProtocolMetricsRoute } from "./routes/protocol_metrics.route.js";
 
 dotenv.config()
 
@@ -63,6 +66,9 @@ fastify.register(async (f) => {
   const eventRepository = new EventRepository(f.prisma)
   const eventsService = new EventsService(eventRepository)
 
+  const protocolMetricsRepository = new ProtocolMetricsRepository(f.prisma)
+  const protocolMetricsService = new ProtocolMetricsService(protocolMetricsRepository)
+
   const referralRepository = new ReferralRepository(f.prisma)
   const referralService = new ReferralService(referralRepository)
 
@@ -72,6 +78,7 @@ fastify.register(async (f) => {
   fastify.register(registerLeaderboardRoutes, { leaderboardService })
   fastify.register(registerReferralRoute, { referralService })
   fastify.register(registerEventsRoute, { eventsService })
+  fastify.register(registerProtocolMetricsRoute, { protocolMetricsService })
 })
 
 // Graceful shutdown
