@@ -6,8 +6,9 @@
   "scripts": {
     "build": "node build.js",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx src/index.ts",
     "tangent:feed-codes": "tsx scripts/feed_referral_codes.ts",
+    "tangent:feed-total-supply": "tsx src/scripts/feed_total_supply.ts",
     "prisma:generate": "prisma generate --schema node_modules/@tangent/prisma-schema-shared/schema.prisma",
     "prisma:push": "prisma db push --schema node_modules/@tangent/prisma-schema-shared/schema.prisma"
   },
@@ -32,7 +33,6 @@
     "@types/node": "^22.15.21",
     "esbuild": "^0.25.10",
     "prisma": "^6.13.0",
-    "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
