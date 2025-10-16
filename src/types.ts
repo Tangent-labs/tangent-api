@@ -101,7 +101,7 @@ export type UserTaskRow = {
   description: string
   pointRate: number
   status: boolean
-  points: number
+  points: bigint
 }
 
 export type UserPointsRow = {

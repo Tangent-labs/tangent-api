@@ -168,32 +168,31 @@ export class EventRepository {
   ORDER BY t.id;
 `
 
-    let totalDebtPoints = 0;
+    let totalDebtPoints = 0n;
     let pointRate = 0;
     let status = false;
 
     rows.forEach(r => {
-      if (r.description.includes("Debt on")) {
+      if (r.description.includes("debt on")) {
         totalDebtPoints += r.points;
         pointRate = r.pointRate;
         status = true;
       }
     });
 
-    const groupedDebtTask: UserTaskRow = {
-      taskId: 0,
-      asset: "USG",
-      url: "https://tangent-dapp.vercel.app/",
-      protocol: "tangent",
-      description: "Have some debt",
-      pointRate: pointRate,
-      status: status,
-      points: totalDebtPoints,
-    };
 
     const finalTasks = [
-      ...rows.filter((r) => !r.description.includes("Debt on")),
-      groupedDebtTask,
+      {
+        taskId: 0,
+        asset: "USG",
+        url: "https://tangent-dapp.vercel.app/",
+        protocol: "tangent",
+        description: "Have some debt",
+        pointRate: pointRate,
+        status: status,
+        points: totalDebtPoints,
+      },
+      ...rows.filter((r) => !r.description.includes("debt on")),
     ];
     return finalTasks
   }
