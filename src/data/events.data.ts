@@ -140,7 +140,7 @@ export class EventRepository {
   async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {
     const addr = userAddress.toLowerCase()
 
-    const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
+    let rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
     FROM points.lp_user_tasks
@@ -168,7 +168,34 @@ export class EventRepository {
   ORDER BY t.id;
 `
 
-    return rows
+    let totalDebtPoints = 0;
+    let pointRate = 0;
+    let status = false;
+
+    rows.forEach(r => {
+      if (r.description.includes("Debt on")) {
+        totalDebtPoints += r.points;
+        pointRate = r.pointRate;
+        status = true;
+      }
+    });
+
+    const groupedDebtTask: UserTaskRow = {
+      taskId: 0,
+      asset: "USG",
+      url: "https://tangent-dapp.vercel.app/",
+      protocol: "tangent",
+      description: "Have some debt",
+      pointRate: pointRate,
+      status: status,
+      points: totalDebtPoints,
+    };
+
+    const finalTasks = [
+      ...rows.filter((r) => !r.description.includes("Debt on")),
+      groupedDebtTask,
+    ];
+    return finalTasks
   }
 
   async getUserRefereesPoints(userAddress: string): Promise<{
