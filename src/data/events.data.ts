@@ -174,9 +174,11 @@ export class EventRepository {
 
     rows.forEach(r => {
       if (r.description.includes("debt on")) {
-        totalDebtPoints += r.points;
+        if (r.points !== 0n) {
+          totalDebtPoints += r.points;
+          status = true;
+        }
         pointRate = r.pointRate;
-        status = true;
       }
     });
 
