@@ -140,7 +140,7 @@ export class EventRepository {
   async getUserTasks(userAddress: string): Promise<UserTaskRow[]> {
     const addr = userAddress.toLowerCase()
 
-    let rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
+    const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
   WITH ut_open AS (
     SELECT task_id, COUNT(*) AS open_count
     FROM points.lp_user_tasks
