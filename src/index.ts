@@ -1,24 +1,25 @@
 import dotenv from "dotenv"
 import fastifyCors from "@fastify/cors"
 import Postgres from "@fastify/postgres"
-import prismaPlugin from "./plugins/prisma"
 import fastifyRateLimit from "@fastify/rate-limit"
+import swagger from "@fastify/swagger";
+import swaggerUI from "@fastify/swagger-ui";
+
 import Fastify, { FastifyInstance } from "fastify"
 
-import { EventRepository } from "./data/events.data"
-import { ReferralRepository } from "./data/referral.data"
-import { LeaderboardRepository } from "./data/leaderboard.data"
-import { ProtocolMetricsRepository } from "./data/protocol_metrics.data"
-
-import { registerEventsRoute } from "./routes/events.route"
-import { registerReferralRoute } from "./routes/referral.route"
-import { registerLeaderboardRoutes } from "./routes/leaderboard.route"
-import { registerProtocolMetricsRoute } from "./routes/protocol_metrics.route"
-
-import { EventsService } from "./services/events.service"
-import { ReferralService } from "./services/referral.service"
-import { LeaderboardService } from "./services/leaderboard.service"
-import { ProtocolMetricsService } from "./services/protocol_metrics.service"
+import prismaPlugin from "./plugins/prisma.js"
+import { EventRepository } from "./data/events.data.js"
+import { ReferralRepository } from "./data/referral.data.js"
+import { EventsService } from "./services/events.service.js"
+import { registerEventsRoute } from "./routes/events.route.js"
+import { ReferralService } from "./services/referral.service.js"
+import { registerReferralRoute } from "./routes/referral.route.js"
+import { LeaderboardService } from "./services/leaderboard.service.js"
+import { LeaderboardRepository } from "./data/leaderboard.data.js"
+import { registerLeaderboardRoutes } from "./routes/leaderboard.route.js"
+import { ProtocolMetricsRepository } from "./data/protocol_metrics.data.js";
+import { ProtocolMetricsService } from "./services/protocol_metrics.service.js";
+import { registerProtocolMetricsRoute } from "./routes/protocol_metrics.route.js";
 
 dotenv.config()
 
@@ -26,6 +27,30 @@ const fastify: FastifyInstance = Fastify({ logger: true })
 
 // Register plugins
 fastify.register(prismaPlugin)
+
+// 1️⃣ Generate OpenAPI spec
+fastify.register(swagger, {
+  openapi: {
+    info: {
+      title: "Fastify TS API",
+      description: "A Fastify API with OpenAPI 3 and Swagger UI",
+      version: "1.0.0",
+    },
+    servers: [
+      { url: "http://localhost:3100" }
+    ],
+  },
+});
+
+fastify.register(swaggerUI, {
+  routePrefix: "/docs", // Swagger UI available at http://localhost:3000/docs
+  uiConfig: {
+    docExpansion: "list",   // optional UI settings
+    deepLinking: true,
+  },
+  // No 'exposeRoute', it's enabled by default
+});
+
 fastify.register(Postgres, {
   connectionString: process.env.DATABASE_URL,
 })
@@ -59,7 +84,7 @@ fastify.register(async (f) => {
 // Graceful shutdown
 const start = async () => {
   try {
-    await fastify.listen({ port: 3100, host: "127.0.0.1" })
+    await fastify.listen({ port: 3100, host: '0.0.0.0' })
     fastify.log.info(`Server listening on http://127.0.0.1:3100`)
   } catch (err) {
     fastify.log.error(err)

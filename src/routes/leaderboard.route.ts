@@ -1,7 +1,8 @@
 import { FastifyInstance } from "fastify"
-import { godsonsLeaderboardSchema, leaderboardsSchema } from "./shemas"
-import { LeaderboardService } from "../services/leaderboard.service"
 import { Address } from "viem"
+import { godsonsLeaderboardSchema, leaderboardsSchema } from "./shemas.js"
+import { LeaderboardService } from "../services/leaderboard.service.js"
+
 
 export async function registerLeaderboardRoutes(fastify: FastifyInstance, opts: { leaderboardService: LeaderboardService }) {
   fastify.get("/leaderboards", leaderboardsSchema, async (request, reply) => {

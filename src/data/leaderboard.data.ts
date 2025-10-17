@@ -1,6 +1,6 @@
 import { Address } from "viem"
 import { PrismaClient } from "@prisma/client"
-import { GodsonsLeaderboardItem } from "../types"
+import { GodsonsLeaderboardItem } from "../types.js"
 
 export class LeaderboardRepository {
   prismaClient: PrismaClient

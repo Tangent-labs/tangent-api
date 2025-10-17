@@ -1,6 +1,6 @@
 import { ethers } from "ethers"
-import { ReferralInput, UserStatus } from "../types"
-import { ReferralRepository } from "../data/referral.data"
+import { ReferralInput, UserStatus } from "../types.js"
+import { ReferralRepository } from "../data/referral.data.js"
 
 export class ReferralService {
   referralRepo: ReferralRepository

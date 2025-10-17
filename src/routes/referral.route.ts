@@ -1,7 +1,7 @@
-import { ReferralInput } from "../types"
+import { ReferralInput } from "../types.js"
 import { FastifyInstance, FastifyRequest } from "fastify"
-import { ReferralService } from "../services/referral.service"
-import { referralSchema, generateReferralSchema, referralStatusSchema } from "./shemas"
+import { ReferralService } from "../services/referral.service.js"
+import { referralSchema, generateReferralSchema, referralStatusSchema } from "./shemas.js"
 
 interface ReferralRoute {
   Body: ReferralInput

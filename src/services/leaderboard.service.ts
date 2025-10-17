@@ -1,5 +1,5 @@
 import { Address } from "viem"
-import { LeaderboardRepository } from "../data/leaderboard.data"
+import { LeaderboardRepository } from "../data/leaderboard.data.js"
 
 export class LeaderboardService {
   leaderboardRepository: LeaderboardRepository

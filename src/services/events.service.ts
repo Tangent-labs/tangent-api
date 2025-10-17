@@ -1,6 +1,6 @@
 import { AddressLike } from "ethers"
-import { EventRepository } from "../data/events.data"
-import { RawEvent, TransformedEvent } from "../types"
+import { EventRepository } from "../data/events.data.js"
+import { RawEvent, TransformedEvent } from "../types.js"
 
 export class EventsService {
   eventsRepo: EventRepository

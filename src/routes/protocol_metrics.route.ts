@@ -1,7 +1,7 @@
-import { TotalSupply } from "../types"
 import { FastifyInstance } from "fastify"
-import { aprsSchema, totalSupplySchema } from "./shemas"
-import { ProtocolMetricsService } from "../services/protocol_metrics.service"
+import { aprsSchema, totalSupplySchema } from "./shemas.js"
+import { TotalSupply } from "../types.js"
+import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
   fastify.get<TotalSupply>("/total-supply/:dateTo/:dateFrom/:tokenAddress", totalSupplySchema, async (request, reply) => {

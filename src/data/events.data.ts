@@ -1,8 +1,9 @@
 import { isAddress } from "viem"
 import { AddressLike } from "ethers"
-import { rangeToMinDate } from "../utils"
 import { PrismaClient } from "@prisma/client"
-import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types"
+
+import { rangeToMinDate } from "../utils.js"
+import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 
 export class EventRepository {
   prismaClient: PrismaClient
@@ -167,7 +168,35 @@ export class EventRepository {
   ORDER BY t.id;
 `
 
-    return rows
+    let totalDebtPoints = 0n;
+    let pointRate = 0;
+    let status = false;
+
+    rows.forEach(r => {
+      if (r.description.includes("debt on")) {
+        if (r.points !== 0n) {
+          totalDebtPoints += r.points;
+          status = true;
+        }
+        pointRate = r.pointRate;
+      }
+    });
+
+
+    const finalTasks = [
+      {
+        taskId: 0,
+        asset: "USG",
+        url: "https://tangent-dapp.vercel.app/",
+        protocol: "tangent",
+        description: "Have some debt",
+        pointRate: pointRate,
+        status: status,
+        points: totalDebtPoints,
+      },
+      ...rows.filter((r) => !r.description.includes("debt on")),
+    ];
+    return finalTasks
   }
 
   async getUserRefereesPoints(userAddress: string): Promise<{
