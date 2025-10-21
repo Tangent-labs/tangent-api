@@ -149,6 +149,9 @@ export const userTasksSchema: RouteShorthandOptions = {
             pointRate: { type: "number" },
             status: { type: "boolean" },
             points: { type: "number" },
+            tokenAddress: { type: "string" },
+            priceUSD: { type: "string" },
+
           },
         },
       },

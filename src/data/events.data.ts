@@ -160,11 +160,14 @@ export class EventRepository {
     t.url                 AS "url",
     t.description         AS "description",
     t.point_rate          AS "pointRate",
+    t.token_address       AS "tokenAddress",
+    lpf.price_usd         AS "priceUSD",
     (ut_open.open_count > 0)             AS "status",
     COALESCE(up_sum.points_sum, 0)       AS "points"
   FROM points.lp_task t
-  LEFT JOIN ut_open  ON ut_open.task_id = t.id
-  LEFT JOIN up_sum   ON up_sum.task_id  = t.id
+  INNER JOIN points.last_price_feeds AS lpf ON lpf.price_source_id = t.price_source_id
+  LEFT JOIN  ut_open                        ON ut_open.task_id = t.id
+  LEFT JOIN  up_sum                         ON up_sum.task_id  = t.id
   ORDER BY t.id;
 `
 
@@ -183,7 +186,7 @@ export class EventRepository {
     });
 
 
-    const finalTasks = [
+    const finalTasks: UserTaskRow[] = [
       {
         taskId: 0,
         asset: "USG",
@@ -196,6 +199,7 @@ export class EventRepository {
       },
       ...rows.filter((r) => !r.description.includes("debt on")),
     ];
+
     return finalTasks
   }
 
@@ -322,8 +326,8 @@ export class EventRepository {
       LEFT JOIN LATERAL (
         SELECT pf.price_usd
         FROM points.price_feeds pf
-        WHERE pf.address = ot.token_address
-          AND pf.timestamp < ${now}::timestamp
+        INNER JOIN points.price_source ps ON ps.address = ot.token_address
+        WHERE pf.timestamp < ${now}::timestamp
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
