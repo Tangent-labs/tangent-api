@@ -326,8 +326,8 @@ export class EventRepository {
       LEFT JOIN LATERAL (
         SELECT pf.price_usd
         FROM points.price_feeds pf
-        WHERE pf.address = ot.token_address
-          AND pf.timestamp < ${now}::timestamp
+        INNER JOIN points.price_source ps ON ps.address = ot.token_address
+        WHERE pf.timestamp < ${now}::timestamp
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
