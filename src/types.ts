@@ -130,3 +130,10 @@ export type MarketAPR = {
   marketAddress: string
   marketName: string
 }
+
+export type SavingAccountsApy = {
+  timestamp: Date
+  value: number
+  key: string
+  tokenAddress: string
+}

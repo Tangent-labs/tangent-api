@@ -31,4 +31,13 @@ export class ProtocolMetricsService {
       throw err
     }
   }
+
+  async getSavingAccountsApy() {
+    try {
+      return await this.protocolMetricsRepo.getSavingAccountsApy()
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
 }

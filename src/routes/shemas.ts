@@ -440,3 +440,29 @@ export const aprsSchema: RouteShorthandOptions = {
     },
   },
 }
+
+export const savingAccountsApySchema: RouteShorthandOptions = {
+  schema: {
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            timestamp: { type: "string", format: "date-time" },
+            key: { type: "string" },
+            tokenAddress: { type: "string" },
+            value: { type: "number" },
+          },
+          required: ["timestamp", "key", "tokenAddress", "value"],
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}

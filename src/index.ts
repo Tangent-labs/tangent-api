@@ -8,6 +8,7 @@ import swaggerUI from "@fastify/swagger-ui"
 import Fastify, { FastifyInstance } from "fastify"
 
 import prismaPlugin from "./plugins/prisma.js"
+import cachePlugin from "./plugins/cache.js"
 import { EventRepository } from "./data/events.data.js"
 import { ReferralRepository } from "./data/referral.data.js"
 import { EventsService } from "./services/events.service.js"
@@ -30,6 +31,7 @@ const fastify: FastifyInstance = Fastify({ logger: true })
 
 // Register plugins
 fastify.register(prismaPlugin)
+fastify.register(cachePlugin)
 
 // 1️⃣ Generate OpenAPI spec
 fastify.register(swagger, {
