@@ -10,19 +10,44 @@ export class ProtocolMetricsRepository {
     this.prismaClient = prisma
   }
 
-  async getTotalSupply(address: string, from: string, to: string): Promise<{ timestamp: Date; amount: string }[]> {
+  async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {
     const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; amount: string }[]>`
+    WITH token AS (
+      SELECT te."id" AS token_id
+      FROM "points"."tracked_erc20" te
+      WHERE te."address" = ${address.toLowerCase()}
+      LIMIT 1
+    ),
+    filtered AS (
       SELECT
         ts."timestamp" AS timestamp,
-        ((ts."total_supply")::numeric / ${BigInt(10 ** 18)}::numeric)::text AS amount
+        (ts."total_supply")::numeric / ${BigInt(10 ** 18)}::numeric AS amount
       FROM "global"."total_supplies" ts
-      JOIN "points"."tracked_erc20" te
-        ON te."id" = ts."token_id"
-      WHERE te."address" = ${address}
-        AND ts."timestamp" >= ${from}::timestamptz
-        AND ts."timestamp" <=  ${to}::timestamptz
-      ORDER BY ts."timestamp" ASC
-    `
+      JOIN token ON token.token_id = ts."token_id"
+      WHERE ts."timestamp" >= COALESCE(
+              ${fromISO}::timestamptz,
+              (SELECT MIN(ts2."timestamp") FROM "global"."total_supplies" ts2 JOIN token t2 ON t2.token_id = ts2."token_id")
+            )
+        AND ts."timestamp" <= ${toISO}::timestamptz
+    ),
+    row_ratio AS (
+      SELECT GREATEST(CEIL(COUNT(*)::numeric / ${targetPoints}::numeric), 1)::int AS ratio
+      FROM filtered
+    ),
+    ranked AS (
+      SELECT
+        f.timestamp,
+        f.amount,
+        ROW_NUMBER() OVER (ORDER BY f.timestamp DESC) AS rn
+      FROM filtered f
+    )
+    SELECT
+      r.timestamp,
+      (r.amount)::text AS amount
+    FROM ranked r, row_ratio rr
+    WHERE (r.rn - 1) % rr.ratio = 0
+    ORDER BY r.timestamp ASC;
+  `
 
     return rows
   }

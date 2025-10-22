@@ -151,7 +151,6 @@ export const userTasksSchema: RouteShorthandOptions = {
             points: { type: "number" },
             tokenAddress: { type: "string" },
             priceUSD: { type: "string" },
-
           },
         },
       },
@@ -391,13 +390,13 @@ export const godsonsLeaderboardSchema: RouteShorthandOptions = {
 
 export const totalSupplySchema: RouteShorthandOptions = {
   schema: {
-    params: {
+    body: {
       type: "object",
-      required: ["dateTo", "dateFrom", "tokenAddress"],
+      required: ["dateTo", "tokenAddress"],
       properties: {
         dateTo: { type: "string", format: "date-time" },
-        dateFrom: { type: "string", format: "date-time" },
-        tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        dateFrom: { type: ["string", "null"], format: "date-time" },
+        tokenAddress: { type: "string" },
       },
     },
     response: {

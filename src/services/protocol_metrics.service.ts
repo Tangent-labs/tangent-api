@@ -7,11 +7,10 @@ export class ProtocolMetricsService {
     this.protocolMetricsRepo = protocolMetricsRepo
   }
 
-  async getTotalSupply(address: string, from: string, to: string) {
+  async getTotalSupply(address: string, from: string | null, to: string) {
+    const TARGET_POINTS = 200
     try {
-      const result = await this.protocolMetricsRepo.getTotalSupply(address, from, to)
-
-      return result
+      return await this.protocolMetricsRepo.getTotalSupply(address, from, to, TARGET_POINTS)
     } catch (err) {
       console.log(err)
       throw err
