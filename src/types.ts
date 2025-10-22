@@ -102,6 +102,8 @@ export type UserTaskRow = {
   pointRate: number
   status: boolean
   points: bigint
+  priceUSD?: number
+  tokenAddress?: string
 }
 
 export type UserPointsRow = {
