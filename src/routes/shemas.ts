@@ -390,13 +390,13 @@ export const godsonsLeaderboardSchema: RouteShorthandOptions = {
 
 export const totalSupplySchema: RouteShorthandOptions = {
   schema: {
-    body: {
+    params: {
       type: "object",
-      required: ["dateTo", "tokenAddress"],
+      required: ["dateTo", "dateFrom", "tokenAddress"],
       properties: {
-        dateTo: { type: "string", format: "date-time" },
-        dateFrom: { type: ["string", "null"], format: "date-time" },
-        tokenAddress: { type: "string" },
+        dateTo: { type: "number" },
+        dateFrom: { type: ["string", "number"] },
+        tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
       },
     },
     response: {
