@@ -8,7 +8,9 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     try {
       const { dateTo, dateFrom, tokenAddress } = request.params
 
-      const totalSupply = await opts.protocolMetricsService.getTotalSupply(tokenAddress, dateFrom, dateTo)
+      const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
+
+      const totalSupply = await opts.protocolMetricsService.getTotalSupply(tokenAddress, parsedDateFrom, dateTo)
 
       return reply.status(200).send(totalSupply)
     } catch (err: any) {

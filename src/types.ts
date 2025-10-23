@@ -34,8 +34,8 @@ export interface UserTasks {
 
 export interface TotalSupply {
   Params: {
-    dateTo: string
-    dateFrom: string
+    dateTo: number
+    dateFrom: string | number
     tokenAddress: string
   }
 }
