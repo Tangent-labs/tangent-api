@@ -55,9 +55,20 @@ fastify.register(swaggerUI, {
 fastify.register(Postgres, {
   connectionString: process.env.DATABASE_URL,
 })
+
+//
+//
+
 fastify.register(fastifyCors, {
-  origin: true,
+  origin: ["http://localhost:3000", "https://tangent-dapp.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
 })
+
+//
+//
+
 fastify.register(fastifyRateLimit, {
   max: 100,
   timeWindow: "15 minutes",

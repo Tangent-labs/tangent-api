@@ -171,20 +171,21 @@ export class EventRepository {
   ORDER BY t.id;
 `
 
-    let totalDebtPoints = 0n;
-    let pointRate = 0;
-    let status = false;
+    let totalDebtPoints = 0n
+    let pointRate = 0
+    let status = false
 
-    rows.forEach(r => {
+    rows.forEach((r) => {
       if (r.description.includes("debt on")) {
         if (r.points !== 0n) {
-          totalDebtPoints += r.points;
-          status = true;
+          totalDebtPoints += r.points
+          status = true
         }
-        pointRate = r.pointRate;
+        pointRate = r.pointRate
       }
-    });
+    })
 
+    console.log("rows : ", rows)
 
     const finalTasks: UserTaskRow[] = [
       {
@@ -198,7 +199,7 @@ export class EventRepository {
         points: totalDebtPoints,
       },
       ...rows.filter((r) => !r.description.includes("debt on")),
-    ];
+    ]
 
     return finalTasks
   }

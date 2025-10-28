@@ -35,6 +35,9 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     try {
       const { userAddress } = request.params
       const result = await opts.eventsService.getUserTasks(userAddress)
+
+      console.log("result : ", result)
+
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
