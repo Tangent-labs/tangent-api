@@ -9,11 +9,13 @@ export class LeaderboardService {
   }
 
   async fetchLpLeaderboard() {
-    return await this.leaderboardRepository.fetchLpLeaderboard()
+    const leaderboard = await this.leaderboardRepository.fetchLpLeaderboard()
+    return leaderboard.filter((_, index) => index < 10)
   }
 
   async fetchVoteLeaderboard() {
-    return await this.leaderboardRepository.fetchVoteLeaderboard()
+    const leaderboard = await this.leaderboardRepository.fetchVoteLeaderboard()
+    return leaderboard.filter((_, index) => index < 10)
   }
 
   async fetchGodsonsLeaderboard(userAddress: Address) {
