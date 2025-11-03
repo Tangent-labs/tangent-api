@@ -284,64 +284,66 @@ export class EventRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
-    WITH base AS (
-      SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
-      FROM points.lp_user_points up
-      WHERE up.user_address = ${addr}
-    ),
-    referral AS (
-      SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
-      FROM "global"."user" u
-      WHERE u.address = ${addr}
-      LIMIT 1
-    ),
-    boost AS (
-      SELECT COALESCE((
-        SELECT ub.multiplier::numeric
-        FROM points.user_boost ub
-        WHERE ub.user_address = ${addr}
-          AND ub.start_at <= ${now}::timestamp
-          AND (ub.end_at IS NULL)
-        ORDER BY ub.start_at DESC
+      WITH base AS (
+        SELECT COALESCE(SUM(up.points), 0)::bigint AS base_points
+        FROM points.lp_user_points up
+        WHERE up.user_address = ${addr}
+      ),
+      referral AS (
+        SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
+        FROM "global"."user" u
+        WHERE u.address = ${addr}
         LIMIT 1
-      ), 1.00::numeric) AS m
-    ),
-    open_tasks AS (
-      SELECT
-        ut.amount,
-        t.point_rate::numeric   AS point_rate,
-        t.token_address::text   AS token_address
-      FROM points.lp_user_tasks ut
-      JOIN points.lp_task t ON t.id = ut.task_id
-      WHERE ut.user_address = ${addr}
-        AND ut.closed IS NULL
-    ),
-    per_task AS (
-      SELECT
-        (ot.amount::numeric / 1e18)        AS amount_tokens,
-        COALESCE(pf.price_usd::numeric, 0) AS price_usd,
-        ot.point_rate                      AS point_rate,
-        b.m                                AS boost_m
-      FROM open_tasks ot
-      CROSS JOIN boost b
-      LEFT JOIN LATERAL (
-        SELECT pf.price_usd
-        FROM points.price_feeds pf
-        INNER JOIN points.price_source ps ON ps.address = ot.token_address
-        WHERE pf.timestamp < ${now}::timestamp
-        ORDER BY pf.timestamp DESC
-        LIMIT 1
-      ) pf ON TRUE
-    ),
-    daily AS (
-      SELECT
-        COALESCE(
-          ROUND(
-            SUM(amount_tokens * price_usd * 86400 * point_rate * boost_m)
-          ), 0
-        )::bigint AS daily_rate
-      FROM per_task
-    )
+      ),
+      boost AS (
+        SELECT COALESCE((
+          SELECT ub.multiplier::numeric
+          FROM points.user_boost ub
+          WHERE ub.user_address = ${addr}
+            AND ub.start_at <= ${now}::timestamp
+            AND (ub.end_at IS NULL)
+          ORDER BY ub.start_at DESC
+          LIMIT 1
+        ), 1.00::numeric) AS m
+      ),
+      open_tasks AS (
+        SELECT
+          ut.amount,
+          t.point_rate::numeric   AS point_rate,
+          t.token_address::text   AS token_address
+        FROM points.lp_user_tasks ut
+        JOIN points.lp_task t ON t.id = ut.task_id
+        WHERE ut.user_address = ${addr}
+          AND ut.closed IS NULL
+      ),
+      per_task AS (
+        SELECT
+          (ot.amount::numeric / 1e18)        AS amount_tokens,
+          COALESCE(pf.price_usd::numeric, 0) AS price_usd,
+          ot.point_rate                      AS point_rate,
+          b.m                                AS boost_m
+        FROM open_tasks ot
+        CROSS JOIN boost b
+        LEFT JOIN LATERAL (
+          SELECT pf.price_usd
+          FROM points.price_feeds pf
+          INNER JOIN points.price_source ps
+            ON ps.address = ot.token_address
+          WHERE pf.price_source_id = ps.id
+            AND pf.timestamp <= ${now}::timestamp
+          ORDER BY pf.timestamp DESC
+          LIMIT 1
+        ) pf ON TRUE
+      ),
+      daily AS (
+        SELECT
+          COALESCE(
+            ROUND(
+              SUM(amount_tokens * price_usd * 86400 * point_rate * boost_m)
+            ), 0
+          )::bigint AS daily_rate
+        FROM per_task
+      )
     SELECT
       (SELECT base_points FROM base)
       + COALESCE((SELECT referral_points FROM referral), 0)::bigint
