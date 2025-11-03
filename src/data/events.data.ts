@@ -1,8 +1,7 @@
 import { isAddress } from "viem"
 import { AddressLike } from "ethers"
-import { PrismaClient } from "@prisma/client"
-
 import { rangeToMinDate } from "../utils.js"
+import { PrismaClient } from "@prisma/client"
 import { RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 
 export class EventRepository {
@@ -327,8 +326,10 @@ export class EventRepository {
       LEFT JOIN LATERAL (
         SELECT pf.price_usd
         FROM points.price_feeds pf
-        INNER JOIN points.price_source ps ON ps.address = ot.token_address
-        WHERE pf.timestamp < ${now}::timestamp
+        INNER JOIN points.price_source ps
+          ON ps.address = ot.token_address
+        WHERE pf.price_source_id = ps.id
+          AND pf.timestamp <= ${now}::timestamp
         ORDER BY pf.timestamp DESC
         LIMIT 1
       ) pf ON TRUE
