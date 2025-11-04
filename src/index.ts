@@ -66,14 +66,6 @@ fastify.register(fastifyCors, {
   credentials: true,
 })
 
-//
-//
-
-fastify.register(fastifyRateLimit, {
-  max: 100,
-  timeWindow: "15 minutes",
-})
-
 fastify.register(async (f) => {
   const userRepository = new UserRepository(f.prisma)
   const userService = new UserService(userRepository)
