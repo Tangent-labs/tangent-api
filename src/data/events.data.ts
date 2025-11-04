@@ -184,8 +184,6 @@ export class EventRepository {
       }
     })
 
-    console.log("rows : ", rows)
-
     const finalTasks: UserTaskRow[] = [
       {
         taskId: 0,
