@@ -32,7 +32,6 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/savingAccounts/apy", savingAccountsApySchema, async (request, reply) => {
     try {
-      // Temporarily disable cache to debug the issue
       const cacheKey = fastify.generateCacheKey(request)
       let apys = fastify.longCache.get(cacheKey)
       if (!apys) {

@@ -21,24 +21,24 @@ declare module "fastify" {
 }
 
 const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
-  // Options par défaut
+  // Default options
   const { shortMax = 100, longMax = 500, includeQuery = false, keyPrefix = "", monitoring = false } = opts || {}
 
-  // Cache court (2 minutes)
+  // Short cache (2 minutes)
   const shortCache = new LRUCache<string, any>({
     max: shortMax,
     ttl: 1000 * 60 * 2,
     allowStale: false,
   })
 
-  // Cache long : TTL par item (customisable)
+  // Long cache : TTL per item (customizable)
   const longCache = new LRUCache<string, any>({
     max: longMax,
     ttl: 1000 * 60 * 60, // 1H
     allowStale: true,
   })
 
-  // Helper intégrée : génère clé unique
+  // Helper : generate unique key with route & params
   fastify.decorate("generateCacheKey", (request: FastifyRequest, customPrefix = keyPrefix) => {
     const paramsStr = JSON.stringify(request.params || {}).replace(/[:{}]/g, "")
     let queryStr = ""
@@ -49,7 +49,7 @@ const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
     return customPrefix ? `${customPrefix}${baseKey}` : baseKey
   })
 
-  // Helper pour longCache avec TTL personnalisé
+  // Helper for longCache allow custom TTL
   fastify.decorate("setLongCache", (key: string, value: any, ttlMs?: number) => {
     if (ttlMs) {
       longCache.set(key, value, { ttl: ttlMs })
@@ -62,14 +62,12 @@ const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
     return longCache.get(key)
   })
 
-  // Injection des caches
+  // Inject caches
   fastify.decorate("shortCache", shortCache)
   fastify.decorate("longCache", longCache)
 
-  // Monitoring optionnel
+  // Monitoring optional
   if (monitoring) {
-    // Note: LRUCache from lru-cache doesn't have event emitters
-    // Monitoring would need to be implemented differently if needed
     fastify.log.info("Cache monitoring enabled")
   }
 
