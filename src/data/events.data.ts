@@ -307,7 +307,7 @@ export class EventRepository {
       SELECT
         ut.amount,
         t.point_rate::numeric   AS point_rate,
-        t.token_address::text   AS token_address
+        t.price_source_id       AS price_source_id
       FROM points.lp_user_tasks ut
       JOIN points.lp_task t ON t.id = ut.task_id
       WHERE ut.user_address = ${addr}
@@ -324,9 +324,7 @@ export class EventRepository {
       LEFT JOIN LATERAL (
         SELECT pf.price_usd
         FROM points.price_feeds pf
-        INNER JOIN points.price_source ps
-          ON ps.address = ot.token_address
-        WHERE pf.price_source_id = ps.id
+        WHERE pf.price_source_id = ot.price_source_id
           AND pf.timestamp <= ${now}::timestamp
         ORDER BY pf.timestamp DESC
         LIMIT 1
