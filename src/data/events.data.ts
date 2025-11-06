@@ -286,6 +286,11 @@ export class EventRepository {
       FROM points.lp_user_points up
       WHERE up.user_address = ${addr}
     ),
+    boosted AS (
+      SELECT COALESCE(SUM(up.booster_points), 0)::bigint AS boosted_points
+      FROM points.lp_user_points up
+      WHERE up.user_address = ${addr}
+    ),
     referral AS (
       SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
       FROM "global"."user" u
@@ -342,6 +347,7 @@ export class EventRepository {
     SELECT
       (SELECT base_points FROM base)
       + COALESCE((SELECT referral_points FROM referral), 0)::bigint
+      + COALESCE((SELECT boosted_points FROM boosted), 0)::bigint
       AS total_points,
       (SELECT daily_rate FROM daily) AS daily_rate;
   `
