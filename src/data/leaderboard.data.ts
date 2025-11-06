@@ -54,11 +54,13 @@ export class LeaderboardRepository {
         WHERE gf."address" = ${userAddress}
       ),
       lp AS (
-        SELECT up."user_address",
-               SUM(COALESCE(up."points", 0) + COALESCE(up."booster_points", 0))::bigint AS lp_pts
-        FROM "points"."lp_user_points" up
-        WHERE up."user_address" IN (SELECT "address" FROM godsons)
-        GROUP BY up."user_address"
+        SELECT up."user_address" AS user_address,
+               SUM(COALESCE(up."points", 0) + COALESCE(up."booster_points", 0) + COALESCE(u."lp_referral_points", 0))::bigint AS lp_pts
+        FROM "global"."user" u
+        LEFT JOIN "points"."lp_user_points" up
+          ON up."user_address" = u."address"
+        WHERE u."address" IN (SELECT "address" FROM godsons)
+        GROUP BY u."address", u."lp_referral_points"
       ),
       vote AS (
         SELECT vt."user_address",
