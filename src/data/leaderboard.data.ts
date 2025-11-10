@@ -54,18 +54,22 @@ export class LeaderboardRepository {
         WHERE gf."address" = ${userAddress}
       ),
       lp AS (
-        SELECT up."user_address",
-               SUM(COALESCE(up."points", 0) + COALESCE(up."booster_points", 0))::bigint AS lp_pts
-        FROM "points"."lp_user_points" up
-        WHERE up."user_address" IN (SELECT "address" FROM godsons)
-        GROUP BY up."user_address"
+        SELECT u."address" AS user_address,
+               (COALESCE(SUM(up."points"), 0) + COALESCE(SUM(up."booster_points"), 0) + COALESCE(u."lp_referral_points", 0))::bigint AS lp_pts
+        FROM "global"."user" u
+        LEFT JOIN "points"."lp_user_points" up
+          ON up."user_address" = u."address"
+        WHERE u."address" IN (SELECT "address" FROM godsons)
+        GROUP BY u."address", u."lp_referral_points"
       ),
       vote AS (
-        SELECT vt."user_address",
-               SUM(COALESCE(vt."points", 0))::bigint AS vote_pts
-        FROM "points"."vote_user_tasks" vt
-        WHERE vt."user_address" IN (SELECT "address" FROM godsons)
-        GROUP BY vt."user_address"
+        SELECT u."address" AS user_address,
+               (COALESCE(SUM(vt."points"), 0) + COALESCE(u."vote_referral_points", 0))::bigint AS vote_pts
+        FROM "global"."user" u
+        LEFT JOIN "points"."vote_user_tasks" vt
+          ON vt."user_address" = u."address"
+        WHERE u."address" IN (SELECT "address" FROM godsons)
+        GROUP BY u."address", u."vote_referral_points"
       ),
       merged AS (
         SELECT g."address",
