@@ -215,21 +215,32 @@ export class EventRepository {
       LIMIT 1
     ),
     godsons AS (
-      SELECT u.address
+      SELECT
+        u.address,
+        COALESCE(u.lp_referral_points, 0)   AS lp_referral_points,
+        COALESCE(u.vote_referral_points, 0) AS vote_referral_points
       FROM "global"."referral_usages" ru
       JOIN "global"."user" u
         ON u.id = ru.godson_id
       WHERE ru.godfather_id = (SELECT id FROM godfather)
     ),
     lp AS (
-      SELECT COALESCE(SUM(points) + SUM(booster_points), 0) AS lp_points
-      FROM "points"."lp_user_points"
-      WHERE user_address IN (SELECT address FROM godsons)
+      SELECT
+        COALESCE(SUM(COALESCE(p.points, 0) + COALESCE(p.booster_points, 0)), 0)
+        + COALESCE(SUM(g.lp_referral_points), 0)
+        AS lp_points
+      FROM godsons g
+      LEFT JOIN "points"."lp_user_points" p
+        ON p.user_address = g.address
     ),
     vt AS (
-      SELECT COALESCE(SUM(points), 0) AS vote_points
-      FROM "points"."vote_user_tasks"
-      WHERE user_address IN (SELECT address FROM godsons)
+      SELECT
+        COALESCE(SUM(COALESCE(v.points, 0)), 0)
+        + COALESCE(SUM(g.vote_referral_points), 0)
+        AS vote_points
+      FROM godsons g
+      LEFT JOIN "points"."vote_user_tasks" v
+        ON v.user_address = g.address
     )
     SELECT lp.lp_points, vt.vote_points
     FROM lp CROSS JOIN vt;
