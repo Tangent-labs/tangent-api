@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify"
-import { aprsSchema, totalSupplySchema } from "./shemas.js"
+import { aprsSchema, savingAccountsApySchema, totalSupplySchema } from "./shemas.js"
 import { TotalSupply } from "../types.js"
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
@@ -24,6 +24,21 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const APRs = await opts.protocolMetricsService.getLastMarketAprs()
 
       return reply.status(200).send(APRs)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch APRs" })
+    }
+  })
+
+  fastify.get("/savingAccounts/apy", savingAccountsApySchema, async (request, reply) => {
+    try {
+      const cacheKey = fastify.generateCacheKey(request)
+      let apys = fastify.longCache.get(cacheKey)
+      if (!apys) {
+        apys = await opts.protocolMetricsService.getSavingAccountsApy()
+        fastify.setLongCache(cacheKey, apys, 10_000)
+      }
+      return reply.status(200).send(apys)
     } catch (err: any) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })

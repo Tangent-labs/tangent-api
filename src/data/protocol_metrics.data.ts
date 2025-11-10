@@ -1,5 +1,5 @@
-import { Prisma, PrismaClient } from "@prisma/client"
-import { MarketAPR } from "../types"
+import { PrismaClient } from "@prisma/client"
+import { MarketAPR, SavingAccountsApy } from "../types"
 
 export type TokenPoint = { timestamp: Date; amount: string }
 
@@ -77,5 +77,42 @@ export class ProtocolMetricsRepository {
       marketAddress: r.contract_address.toLowerCase(),
       marketName: r.contract_name,
     }))
+  }
+
+  async getSavingAccountsApy(): Promise<SavingAccountsApy[]> {
+    if (!this.prismaClient) {
+      throw new Error("Prisma client is not initialized")
+    }
+
+    try {
+      const data = await this.prismaClient.$queryRaw<
+        Array<{
+          timestamp: Date
+          value: number
+          key: string
+          tokenAddress: string
+        }>
+      >`
+         SELECT
+          giv.timestamp,
+          giv.value,
+          gi.key,
+          gi.args as "tokenAddress"
+        FROM global.global_indicators_values giv
+        JOIN global.global_indicators gi ON gi.id = giv.global_indicator_id
+        WHERE gi.key IN ('SAVING_APY_USG', 'SAVING_APY_TAN')
+          AND giv.timestamp = (
+            SELECT MAX(giv2.timestamp)
+            FROM global.global_indicators_values giv2
+            WHERE giv2.global_indicator_id = giv.global_indicator_id
+          )
+        ORDER BY gi.key
+      `
+
+      return data
+    } catch (error) {
+      console.error("Database error in getSavingAccountsApy:", error)
+      throw error
+    }
   }
 }
