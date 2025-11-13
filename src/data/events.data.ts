@@ -215,35 +215,37 @@ export class EventRepository {
       LIMIT 1
     ),
     godsons AS (
-      SELECT
-        u.address,
-        COALESCE(u.lp_referral_points, 0)   AS lp_referral_points,
-        COALESCE(u.vote_referral_points, 0) AS vote_referral_points
+      SELECT u.id, u.address
       FROM "global"."referral_usages" ru
       JOIN "global"."user" u
         ON u.id = ru.godson_id
       WHERE ru.godfather_id = (SELECT id FROM godfather)
     ),
+    referrals AS (
+      SELECT
+        COALESCE(SUM(u.lp_referral_points), 0)   AS lp_referral_points,
+        COALESCE(SUM(u.vote_referral_points), 0) AS vote_referral_points
+      FROM "global"."user" u
+      WHERE u.id IN (SELECT id FROM godsons)
+    ),
     lp AS (
       SELECT
-        COALESCE(SUM(COALESCE(p.points, 0) + COALESCE(p.booster_points, 0)), 0)
-        + COALESCE(SUM(g.lp_referral_points), 0)
-        AS lp_points
-      FROM godsons g
-      LEFT JOIN "points"."lp_user_points" p
-        ON p.user_address = g.address
+        COALESCE(SUM(p.points + p.booster_points), 0) AS lp_points
+      FROM "points"."lp_user_points" p
+      WHERE p.user_address IN (SELECT address FROM godsons)
     ),
     vt AS (
       SELECT
-        COALESCE(SUM(COALESCE(v.points, 0)), 0)
-        + COALESCE(SUM(g.vote_referral_points), 0)
-        AS vote_points
-      FROM godsons g
-      LEFT JOIN "points"."vote_user_tasks" v
-        ON v.user_address = g.address
+        COALESCE(SUM(v.points), 0) AS vote_points
+      FROM "points"."vote_user_tasks" v
+      WHERE v.user_address IN (SELECT address FROM godsons)
     )
-    SELECT lp.lp_points, vt.vote_points
-    FROM lp CROSS JOIN vt;
+    SELECT
+      lp.lp_points + rt.lp_referral_points      AS lp_points,
+      vt.vote_points + rt.vote_referral_points  AS vote_points
+    FROM lp
+    CROSS JOIN vt
+    CROSS JOIN referrals rt;
   `
 
     const lpPoints = rows?.[0]?.lp_points ?? 0n
