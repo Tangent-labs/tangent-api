@@ -117,6 +117,13 @@ export class ReferralRepository {
           },
         },
       })
+
+      await tx.offchain_boost_user.create({
+        data: {
+          type: "ONBOARDED",
+          user_address: addr,
+        },
+      })
     })
   }
 
@@ -140,21 +147,13 @@ export class ReferralRepository {
         isUnique = !existing
       } while (!isUnique)
 
-      await this.prismaClient.$transaction(async () => {
-        await this.prismaClient.offchain_boost_user.create({
-          data: {
-            type: "ONBOARDED",
-            user_address: address.toLowerCase(),
-          },
-        })
-        await this.prismaClient.user.upsert({
-          where: { address: address.toLowerCase() },
-          update: { code },
-          create: {
-            address: address.toLowerCase(),
-            code,
-          },
-        })
+      await this.prismaClient.user.upsert({
+        where: { address: address.toLowerCase() },
+        update: { code },
+        create: {
+          address: address.toLowerCase(),
+          code,
+        },
       })
 
       return code
