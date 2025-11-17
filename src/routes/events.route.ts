@@ -1,7 +1,15 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
 import { EventsService } from "../services/events.service.js"
 import { EventsRoute, GetHistoricalMarketDataRoute, UserPoints, UserTasks } from "../types.js"
-import { eventsSchema, getMarketHistoricalMarketDataSchema, lpPointsSchema, refereesPointsSchema, userTasksSchema, votePointsSchema } from "./shemas.js"
+import {
+  boostsPointsSchema,
+  eventsSchema,
+  getMarketHistoricalMarketDataSchema,
+  lpPointsSchema,
+  refereesPointsSchema,
+  userTasksSchema,
+  votePointsSchema,
+} from "./shemas.js"
 
 export async function registerEventsRoute(fastify: FastifyInstance, opts: { eventsService: EventsService }) {
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
@@ -80,6 +88,17 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     try {
       const { userAddress } = request.params
       const result = await opts.eventsService.getUserRefereesPoints(userAddress)
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user points" })
+    }
+  })
+
+  fastify.get<UserPoints>("/boosts/:userAddress", boostsPointsSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getUserBoosts(userAddress)
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)

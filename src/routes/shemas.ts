@@ -44,6 +44,33 @@ export const getMarketHistoricalMarketDataSchema: RouteShorthandOptions = {
   },
 }
 
+export const boostsPointsSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["userAddress"],
+      properties: {
+        userAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          lpPoints: { type: "number" },
+          votePoints: { type: "number" },
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const refereesPointsSchema: RouteShorthandOptions = {
   schema: {
     params: {
