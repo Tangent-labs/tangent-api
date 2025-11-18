@@ -95,10 +95,11 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
     }
   })
 
-  fastify.get<UserPoints>("/boosts/:userAddress", boostsPointsSchema, async (request, reply) => {
+  fastify.get<{ Params: { userAddress: string } }>("/boosts/:userAddress", boostsPointsSchema, async (request, reply) => {
     try {
       const { userAddress } = request.params
       const result = await opts.eventsService.getUserBoosts(userAddress)
+
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)

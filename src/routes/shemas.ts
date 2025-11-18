@@ -55,17 +55,15 @@ export const boostsPointsSchema: RouteShorthandOptions = {
     },
     response: {
       200: {
-        type: "object",
-        properties: {
-          lpPoints: { type: "number" },
-          votePoints: { type: "number" },
-        },
+        type: "array",
+        items: { type: "string" },
       },
       500: {
         type: "object",
         properties: {
           error: { type: "string" },
         },
+        required: ["error"],
       },
     },
   },
