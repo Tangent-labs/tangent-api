@@ -388,6 +388,32 @@ export const godsonsLeaderboardSchema: RouteShorthandOptions = {
   },
 }
 
+export const susgHistoricalDataSchema: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["dateTo", "dateFrom"],
+      properties: {
+        dateTo: { type: "number" },
+        dateFrom: { type: ["string", "number"] },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            timestamp: { type: "string", format: "date-time" },
+            amount: { type: "string" },
+          },
+          required: ["timestamp", "amount"],
+        },
+      },
+    },
+  },
+}
+
 export const totalSupplySchema: RouteShorthandOptions = {
   schema: {
     params: {

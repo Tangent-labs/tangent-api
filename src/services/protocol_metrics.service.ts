@@ -7,6 +7,20 @@ export class ProtocolMetricsService {
     this.protocolMetricsRepo = protocolMetricsRepo
   }
 
+  async getSUSGApy(from: number | null, to: number) {
+    const TARGET_POINTS = 200
+
+    const datFrom = from ? new Date(from).toISOString() : null
+    const dateTo = new Date(to).toISOString()
+
+    try {
+      return await this.protocolMetricsRepo.getSUSGApy("SAVING_APY_USG", datFrom, dateTo, TARGET_POINTS)
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getTotalSupply(address: string, from: number | null, to: number) {
     const TARGET_POINTS = 200
 

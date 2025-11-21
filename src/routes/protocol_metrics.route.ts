@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify"
-import { aprsSchema, savingAccountsApySchema, totalSupplySchema } from "./shemas.js"
-import { TotalSupply } from "../types.js"
+import { aprsSchema, savingAccountsApySchema, susgHistoricalDataSchema, totalSupplySchema } from "./shemas.js"
+import { sUSG, TotalSupply } from "../types.js"
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
@@ -42,6 +42,21 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err: any) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
+    }
+  })
+
+  fastify.get<sUSG>("/susg/apy/:dateTo/:dateFrom", susgHistoricalDataSchema, async (request, reply) => {
+    try {
+      const { dateTo, dateFrom } = request.params
+
+      const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
+
+      const susgAPY = await opts.protocolMetricsService.getSUSGApy(parsedDateFrom, dateTo)
+
+      return reply.status(200).send(susgAPY)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch total supply" })
     }
   })
 }

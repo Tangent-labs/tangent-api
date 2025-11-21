@@ -115,4 +115,46 @@ export class ProtocolMetricsRepository {
       throw error
     }
   }
+
+  async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
+    return await this.prismaClient.$queryRaw<{ timestamp: Date; amount: number }[]>`
+    WITH indicator AS (
+      SELECT id
+      FROM global.global_indicators
+      WHERE key = ${key}
+      LIMIT 1
+    ),
+    filtered AS (
+      SELECT
+        giv.timestamp,
+        giv.value AS amount
+      FROM global.global_indicators_values giv
+      JOIN indicator i ON giv.global_indicator_id = i.id
+      WHERE giv.timestamp >= COALESCE(
+              ${fromISO}::timestamptz,
+              (SELECT MIN(timestamp) FROM global.global_indicators_values WHERE global_indicator_id = i.id)
+            )
+        AND giv.timestamp <= ${toISO}::timestamptz
+      ORDER BY giv.timestamp ASC
+    ),
+    row_ratio AS (
+      SELECT GREATEST(CEIL(COUNT(*)::numeric / ${targetPoints}::numeric), 1)::int AS ratio
+      FROM filtered
+    ),
+    ranked AS (
+      SELECT
+        f.timestamp,
+        f.amount,
+        ROW_NUMBER() OVER (ORDER BY f.timestamp ASC) AS rn
+      FROM filtered f
+    )
+    SELECT
+      r.timestamp,
+      r.amount
+    FROM ranked r
+    CROSS JOIN row_ratio rr
+    WHERE (r.rn - 1) % rr.ratio = 0
+    ORDER BY r.timestamp ASC;
+  `
+  }
 }
