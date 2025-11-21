@@ -373,4 +373,23 @@ export class EventRepository {
       lpDailyRate: dailyRate,
     }
   }
+
+  async getUserBoosts(userAddress: string): Promise<string[]> {
+    const address = userAddress.toLowerCase()
+
+    const [offchainBoosts, onchainBoosts] = await Promise.all([
+      this.prismaClient.offchain_boost_user.findMany({
+        where: { user_address: address },
+        select: { type: true },
+      }),
+      this.prismaClient.onchain_boost_user.findMany({
+        where: { user_address: address },
+        select: { type: true },
+      }),
+    ])
+
+    const boostNames = [...offchainBoosts.map((b) => b.type), ...onchainBoosts.map((b) => b.type)]
+
+    return boostNames
+  }
 }
