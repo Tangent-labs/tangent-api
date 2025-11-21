@@ -11,8 +11,10 @@ export class LeaderboardRepository {
 
   async fetchLpLeaderboard() {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
-      SELECT user_address, pts FROM points.view_leaderboard_lp;
-    `
+      SELECT user_address, pts
+      FROM points.view_leaderboard_lp
+      ORDER BY pts DESC, user_address ASC;
+  `
 
     return rows.map((r, i) => ({
       rank: i + 1,
