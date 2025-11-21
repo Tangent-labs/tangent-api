@@ -40,6 +40,14 @@ export interface TotalSupply {
   }
 }
 
+export interface sUSG {
+  Params: {
+    dateTo: number
+    dateFrom: string | number
+    tokenAddress: string
+  }
+}
+
 export interface UserPoints {
   Params: {
     userAddress: string
