@@ -140,19 +140,21 @@ export class EventRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
-  WITH ut_open AS (
-    SELECT task_id, COUNT(*) AS open_count
-    FROM points.lp_user_tasks
-    WHERE user_address = ${addr}
-      AND closed IS NULL
-    GROUP BY task_id
-  ),
-  up_sum AS (
-    SELECT task_id, points AS points_sum
-    FROM points.lp_user_points
-    WHERE user_address = ${addr}
-  )
-  SELECT
+    WITH ut_open AS (
+      SELECT task_id, COUNT(*) AS open_count
+      FROM points.lp_user_tasks
+      WHERE user_address = ${addr}
+        AND closed IS NULL
+      GROUP BY task_id
+    ),
+    up_sum AS (
+      SELECT
+        task_id,
+        (COALESCE(points, 0) + COALESCE(booster_points, 0)) AS points_sum
+      FROM points.lp_user_points
+      WHERE user_address = ${addr}
+    )
+    SELECT
     t.id                  AS "taskId",
     t.name                AS "asset",
     t.protocol            AS "protocol",
@@ -163,12 +165,12 @@ export class EventRepository {
     lpf.price_usd         AS "priceUSD",
     (ut_open.open_count > 0)             AS "status",
     COALESCE(up_sum.points_sum, 0)       AS "points"
-  FROM points.lp_task t
+    FROM points.lp_task t
   INNER JOIN points.last_price_feeds AS lpf ON lpf.price_source_id = t.price_source_id
   LEFT JOIN  ut_open                        ON ut_open.task_id = t.id
   LEFT JOIN  up_sum                         ON up_sum.task_id  = t.id
-  ORDER BY t.id;
-`
+    ORDER BY t.id;
+  `
 
     let totalDebtPoints = 0n
     let pointRate = 0
