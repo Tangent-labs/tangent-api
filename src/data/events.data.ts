@@ -140,21 +140,21 @@ export class EventRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<UserTaskRow[]>`
-    WITH ut_open AS (
-      SELECT task_id, COUNT(*) AS open_count
-      FROM points.lp_user_tasks
-      WHERE user_address = ${addr}
-        AND closed IS NULL
-      GROUP BY task_id
-    ),
-    up_sum AS (
-      SELECT
-        task_id,
-        (COALESCE(points, 0) + COALESCE(booster_points, 0)) AS points_sum
-      FROM points.lp_user_points
-      WHERE user_address = ${addr}
-    )
+  WITH ut_open AS (
+    SELECT task_id, COUNT(*) AS open_count
+    FROM points.lp_user_tasks
+    WHERE user_address = ${addr}
+      AND closed IS NULL
+    GROUP BY task_id
+  ),
+  up_sum AS (
     SELECT
+      task_id,
+      (COALESCE(points, 0) + COALESCE(booster_points, 0)) AS points_sum
+    FROM points.lp_user_points
+    WHERE user_address = ${addr}
+  )
+  SELECT
     t.id                  AS "taskId",
     t.name                AS "asset",
     t.protocol            AS "protocol",
@@ -374,6 +374,17 @@ export class EventRepository {
       lpTotalPoints: totalPoints,
       lpDailyRate: dailyRate,
     }
+  }
+
+  async getUserBoost(userAddress: string): Promise<number> {
+    const address = userAddress.toLowerCase()
+
+    const userBoost = await this.prismaClient.user_boost.findFirst({
+      where: { user_address: address, AND: { end_at: null } },
+      select: { multiplier: true },
+    })
+
+    return Number(userBoost?.multiplier) || 1
   }
 
   async getUserBoosts(userAddress: string): Promise<string[]> {

@@ -7,6 +7,7 @@ import {
   getMarketHistoricalMarketDataSchema,
   lpPointsSchema,
   refereesPointsSchema,
+  userBoostPointsSchema,
   userTasksSchema,
   votePointsSchema,
 } from "./shemas.js"
@@ -103,7 +104,19 @@ export async function registerEventsRoute(fastify: FastifyInstance, opts: { even
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch user points" })
+      return reply.status(500).send({ error: "Failed to fetch user boosts" })
+    }
+  })
+
+  fastify.get<{ Params: { userAddress: string } }>("/user-boost/:userAddress", userBoostPointsSchema, async (request, reply) => {
+    try {
+      const { userAddress } = request.params
+      const result = await opts.eventsService.getUserBoost(userAddress)
+
+      return reply.status(200).send(result)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch user boost" })
     }
   })
 }
