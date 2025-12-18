@@ -148,7 +148,9 @@ export class EventRepository {
     GROUP BY task_id
   ),
   up_sum AS (
-    SELECT task_id, points AS points_sum
+    SELECT
+      task_id,
+      (COALESCE(points, 0) + COALESCE(booster_points, 0)) AS points_sum
     FROM points.lp_user_points
     WHERE user_address = ${addr}
   )
@@ -163,12 +165,12 @@ export class EventRepository {
     lpf.price_usd         AS "priceUSD",
     (ut_open.open_count > 0)             AS "status",
     COALESCE(up_sum.points_sum, 0)       AS "points"
-  FROM points.lp_task t
+    FROM points.lp_task t
   INNER JOIN points.last_price_feeds AS lpf ON lpf.price_source_id = t.price_source_id
   LEFT JOIN  ut_open                        ON ut_open.task_id = t.id
   LEFT JOIN  up_sum                         ON up_sum.task_id  = t.id
-  ORDER BY t.id;
-`
+    ORDER BY t.id;
+  `
 
     let totalDebtPoints = 0n
     let pointRate = 0
@@ -372,6 +374,17 @@ export class EventRepository {
       lpTotalPoints: totalPoints,
       lpDailyRate: dailyRate,
     }
+  }
+
+  async getUserBoost(userAddress: string): Promise<number> {
+    const address = userAddress.toLowerCase()
+
+    const userBoost = await this.prismaClient.user_boost.findFirst({
+      where: { user_address: address, AND: { end_at: null } },
+      select: { multiplier: true },
+    })
+
+    return Number(userBoost?.multiplier) || 1
   }
 
   async getUserBoosts(userAddress: string): Promise<string[]> {
