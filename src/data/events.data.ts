@@ -145,6 +145,7 @@ export class EventRepository {
     FROM points.lp_user_tasks
     WHERE user_address = ${addr}
       AND closed IS NULL
+      AND amount::numeric > 0
     GROUP BY task_id
   ),
   up_sum AS (
