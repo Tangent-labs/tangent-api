@@ -1,4 +1,4 @@
-import { Address } from "viem"
+import { AddressLike } from "ethers"
 
 export interface ReferralData {
   code: string
@@ -123,7 +123,7 @@ export type UserPointsRow = {
 
 export type GodsonsLeaderboardItem = {
   rank: number
-  address: Address
+  address: AddressLike
   lpPoints: number
   votePts: number
 }

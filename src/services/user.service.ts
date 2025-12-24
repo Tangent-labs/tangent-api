@@ -1,4 +1,4 @@
-import { isAddress } from "viem"
+import { isAddress } from "ethers"
 import { UserRepository } from "../data/user.data.js"
 
 export class UserService {
