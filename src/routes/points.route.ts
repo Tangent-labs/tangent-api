@@ -70,9 +70,10 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       return reply.status(200).send(result)
     } catch (err: any) {
       fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch user points" })
+      return reply.status(500).send({ error: "Failed to fetch user boosts" })
     }
   })
+
 
   fastify.get("/leaderboards", leaderboardsSchema, async (request, reply) => {
     try {
