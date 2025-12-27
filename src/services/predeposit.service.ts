@@ -31,6 +31,17 @@ export class PredepositService {
         if (!predepositState) {
             throw Error("Predeposit not started")
         }
+        let userState = ""
+        let isSigned = false
+        const userStatusRow = await this.predepositRepository.getUserStatus(userAddress.toString())
+        if (!userStatusRow) {
+            userState = "public"
+            isSigned = false
+        }
+        else {
+            userState = userStatusRow.is_private ? "private" : "public"
+            isSigned = userStatusRow.signature ? true : false
+        }
         const lpData: { accumulatedBalance: string, accumulatedTotal: string, cap: string, lpName: string, otherStable: { name: string, address: string, decimals: number } }[] = []
         const accountedTotals = await this.predepositRepository.getAccountedTotals()
 
@@ -55,7 +66,7 @@ export class PredepositService {
             })
         }
 
-        return { predepositState, lpData: lpData }
+        return { predepositState, userState, isSigned, lpData: lpData }
 
     }
 

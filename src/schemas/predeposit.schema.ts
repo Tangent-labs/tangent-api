@@ -27,6 +27,8 @@ export const predepositFrontSchema: RouteShorthandOptions = {
                 type: "object",
                 properties: {
                     predepositState: { type: "string" },
+                    userState: { type: "string" },
+                    isSigned: { type: "boolean" },
                     lpData: {
                         type: "array",
                         items: {
