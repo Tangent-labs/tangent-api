@@ -34,7 +34,7 @@ export async function registerPredepositRoutes(fastify: FastifyInstance, opts: {
             return reply.status(200).send(result)
         } catch (err: any) {
             request.log.error("Error processing signature predeposit :", err.toString())
-            return reply.status(err.message.includes("Invalid") || err.message.includes("already") ? 400 : 500).send({ error: err.message })
+            return reply.status(err.message.includes("Invalid") ? 400 : 500).send({ error: err.message })
         }
     })
 
