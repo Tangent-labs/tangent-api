@@ -1,5 +1,7 @@
-import { PrismaClient } from "@prisma/client"
-import { MarketAPR, SavingAccountsApy } from "../types"
+import { Prisma, PrismaClient } from "@prisma/client"
+import { MarketAPR, RawEvent, SavingAccountsApy } from "../types"
+import { AddressLike, isAddress } from "ethers";
+import { rangeToMinDate } from "../utils";
 
 export type TokenPoint = { timestamp: Date; amount: string }
 
@@ -8,6 +10,100 @@ export class ProtocolMetricsRepository {
 
   constructor(prisma: PrismaClient) {
     this.prismaClient = prisma
+  }
+
+  async getEventsByAccount(account: string, market: string): Promise<RawEvent[]> {
+    if (!isAddress(account) || !isAddress(market)) {
+      throw new Error("Invalid account or market address")
+    }
+
+    const marketResult = await this.prismaClient.$queryRaw<{ id: string }[]>`
+        SELECT id FROM events.usg_markets WHERE LOWER(contract_address) = LOWER(${market})
+      `
+    if (marketResult.length === 0) throw new Error(`No market found for contract_address: ${market}`)
+
+    const market_id = marketResult[0].id
+
+    const rows = await this.prismaClient.$queryRaw<RawEvent[]>`
+        SELECT 'borrow' AS label, '0' AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.borrow WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.deposit WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'zap_deposit' AS label, staked_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.zap_deposit WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.deposit_and_borrow WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'zap_deposit_and_borrow' AS label, staked_amount AS collat_amount, borrow_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.zap_deposit_and_borrow WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'withdraw' AS label, withdrawn_amount AS collat_amount, '0' AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.withdraw WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.repay WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.repay_and_withdraw WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'zap_repay' AS label, '0' AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.zap_repay WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'zap_repay_and_withdraw' AS label, withdrawn_amount AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.zap_repay_and_withdraw WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.leverage WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'zap_leverage' AS label, staked_amount AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.zap_leverage WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.liquidate WHERE account = ${account} AND market_id = ${market_id}
+        UNION ALL
+        SELECT 'self_liquidate' AS label, collateral_liquidated AS collat_amount, repaid_amount AS usg_amount, block_date::text AS date, tx_hash
+        FROM events.self_liquidate WHERE account = ${account} AND market_id = ${market_id}
+        ORDER BY date DESC
+      `
+    return rows
+  }
+
+  /**
+   * @param marketAddress marketAddress provided by the frontend
+   * @param dateFrom ISO date/time from the frontend (trusted block time)
+   * @param range '1w' | '1m' | '1y' | 'all'
+   * @param rowAmounts max number of points displayed in the graph
+   */
+  async getHistoricalData(marketAddress: AddressLike, dateFrom: string, range: string, rowAmounts: number = 100) {
+    const minDate = rangeToMinDate(range, dateFrom) // always a string (incl. for "all")
+
+    const chartData = await this.prismaClient.$queryRaw<any[]>`
+    WITH filtered_data AS (
+      SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
+      FROM global.market_global_data AS mgd
+      JOIN events.usg_markets AS um ON mgd.market_id = um.id
+      WHERE um.contract_address = ${marketAddress}
+        -- mgd.timestamp is timestamp WITHOUT time zone; interpret it as UTC
+        AND (mgd.timestamp AT TIME ZONE 'UTC') > ${minDate}::timestamptz
+    ),
+    row_ratio AS (
+      SELECT CEIL(COUNT(*) / ${rowAmounts}) AS ratio
+      FROM filtered_data
+    )
+    SELECT timestamp, tvl_usd, total_debt, ir_apy, apr_current
+    FROM (
+      SELECT id, timestamp, tvl_usd, total_debt, ir_apy, apr_current,
+             ROW_NUMBER() OVER (ORDER BY id DESC) AS rn
+      FROM filtered_data
+    ) x
+    CROSS JOIN row_ratio
+    ORDER BY id ASC;
+  `
+
+    return chartData
   }
 
   async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {
