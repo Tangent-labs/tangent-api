@@ -64,7 +64,7 @@ fastify.register(Postgres, {
 
 fastify.register(fastifyCors, {
   // origin: ["http://localhost:3000", "http://localhost:3100", "http://127.0.0.1:3100", "https://tangent-dapp.vercel.app"],
-  origin: ["*"],
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
