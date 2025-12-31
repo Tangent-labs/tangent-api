@@ -1,6 +1,6 @@
 import { AddressLike } from "ethers"
-import { ProtocolMetricsRepository } from "../data/protocol_metrics.data"
-import { RawEvent, TransformedEvent } from "../types"
+import { ProtocolMetricsRepository } from "../data/protocol_metrics.data.js"
+import { RawEvent, TransformedEvent } from "../types.js"
 
 export class ProtocolMetricsService {
   protocolMetricsRepo: ProtocolMetricsRepository

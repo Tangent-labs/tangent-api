@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client"
-import { MarketAPR, RawEvent, SavingAccountsApy } from "../types"
+import { MarketAPR, RawEvent, SavingAccountsApy } from "../types.js"
 import { AddressLike, isAddress } from "ethers";
-import { rangeToMinDate } from "../utils";
+import { rangeToMinDate } from "../utils.js";
 
 export type TokenPoint = { timestamp: Date; amount: string }
 

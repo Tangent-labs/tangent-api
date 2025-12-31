@@ -1,5 +1,5 @@
 import { AddressLike } from "ethers"
-import { PointsRepository } from "../data/points.data"
+import { PointsRepository } from "../data/points.data.js"
 
 
 export class PointsService {
