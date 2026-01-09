@@ -184,7 +184,6 @@ export class PointsRepository {
     )
     SELECT
       t.id::bigint                               AS "taskId",
-      t.name                                     AS "name",
       t.organisation                             AS "organisation",
       t.protocol                                 AS "protocol",
       t.url                                      AS "url",
