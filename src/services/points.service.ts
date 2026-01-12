@@ -1,7 +1,6 @@
 import { AddressLike } from "ethers"
 import { PointsRepository } from "../data/points.data.js"
 
-
 export class PointsService {
   pointsRepository: PointsRepository
 
@@ -81,6 +80,17 @@ export class PointsService {
   async getUserBoosts(userAddress: string) {
     try {
       const result = await this.pointsRepository.getUserBoosts(userAddress)
+
+      return result
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getUserBoostMultiplicator(userAddress: string) {
+    try {
+      const result = await this.pointsRepository.getUserBoost(userAddress)
 
       return result
     } catch (err) {

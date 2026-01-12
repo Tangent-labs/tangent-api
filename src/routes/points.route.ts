@@ -1,9 +1,16 @@
 import { FastifyInstance } from "fastify"
-import { boostsPointsSchema, godsonsLeaderboardSchema, leaderboardsSchema, lpPointsSchema, refereesPointsSchema, userTasksSchema, votePointsSchema } from "../schemas/points.schema.js"
+import {
+  boostsPointsSchema,
+  godsonsLeaderboardSchema,
+  leaderboardsSchema,
+  lpPointsSchema,
+  refereesPointsSchema,
+  userTasksSchema,
+  votePointsSchema,
+} from "../schemas/points.schema.js"
 import { UserTasks, UserPoints } from "../types.js"
 import { PointsService } from "../services/points.service.js"
 import { AddressLike } from "ethers"
-
 
 export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts: { pointsService: PointsService }) {
   fastify.get<UserTasks>("/tasks/:userAddress", userTasksSchema, async (request, reply) => {
@@ -66,14 +73,14 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
     try {
       const { userAddress } = request.params
       const result = await opts.pointsService.getUserBoosts(userAddress)
+      const boost = await opts.pointsService.getUserBoostMultiplicator(userAddress)
 
-      return reply.status(200).send(result)
+      return reply.status(200).send({ result, boost })
     } catch (err: any) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user boosts" })
     }
   })
-
 
   fastify.get("/leaderboards", leaderboardsSchema, async (request, reply) => {
     try {

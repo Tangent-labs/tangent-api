@@ -283,6 +283,17 @@ export class PointsRepository {
     return boostNames
   }
 
+  async getUserBoost(userAddress: string): Promise<number> {
+    const address = userAddress.toLowerCase()
+
+    const userBoost = await this.prismaClient.user_boost.findFirst({
+      where: { user_address: address, AND: { end_at: null } },
+      select: { multiplier: true },
+    })
+
+    return Number(userBoost?.multiplier) || 1
+  }
+
   async fetchLpLeaderboard() {
     const rows = await this.prismaClient.$queryRaw<{ user_address: string; pts: bigint }[]>`
       SELECT user_address, pts
