@@ -204,16 +204,22 @@ export class PointsRepository {
       t.description                              AS "description",
       t.point_rate                               AS "pointRate",
       COALESCE(agg.points_sum, 0)::bigint        AS "points",
-      (
+      COALESCE((
         SELECT vUserTask.voting_power 
         FROM points.vote_user_tasks vUserTask
         INNER JOIN points.vote_task vTask ON vTask.id = vUserTask.vote_task_id
-        INNER JOIN lastOffChainEpoch 		  ON vUserTask.votes_epoch_processed_proposal_id = lastOffChainEpoch.proposal_id 
-        LEFT JOIN lastOnChainEpoch 		    ON vUserTask.votes_epoch_processed_proposal_id = lastOnChainEpoch.proposal_id 
+        INNER JOIN lastOnChainEpoch 		    ON vUserTask.votes_epoch_processed_proposal_id = lastOnChainEpoch.proposal_id 
         WHERE user_address = ${addr} AND vote_task_id = t.id
         ORDER BY vUserTask.date DESC
         LIMIT 1
-      )                                          AS "lastVotingPower" 
+      ),         
+      (SELECT vUserTask.voting_power 
+        FROM points.vote_user_tasks vUserTask
+        INNER JOIN points.vote_task vTask ON vTask.id = vUserTask.vote_task_id
+        INNER JOIN lastOffChainEpoch 		  ON vUserTask.votes_epoch_processed_proposal_id = lastOffChainEpoch.proposal_id 
+        WHERE user_address = ${addr} AND vote_task_id = t.id
+        ORDER BY vUserTask.date DESC
+        LIMIT 1))                                          AS "lastVotingPower" 
       FROM points.vote_task t
       LEFT JOIN agg ON agg.vote_task_id = t.id
       ORDER BY t.id;`
