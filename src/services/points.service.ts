@@ -25,7 +25,6 @@ export class PointsService {
   async getUserVoteTasks(userAddress: string) {
     try {
       const result = await this.pointsRepository.getUserVoteTasks(userAddress)
-
       return result
     } catch (err) {
       console.log(err)
@@ -36,7 +35,6 @@ export class PointsService {
   async getUserTasks(userAddress: string) {
     try {
       const result = await this.pointsRepository.getUserTasks(userAddress)
-
       return result
     } catch (err) {
       console.log(err)
