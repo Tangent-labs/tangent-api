@@ -9,7 +9,6 @@ export class ProtocolMetricsService {
     this.protocolMetricsRepo = protocolMetricsRepo
   }
 
-
   transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
     return rawEvents.map((event) => ({
       label: event.label,
@@ -43,6 +42,20 @@ export class ProtocolMetricsService {
 
     try {
       return await this.protocolMetricsRepo.getSUSGApy("SAVING_APY_USG", datFrom, dateTo, TARGET_POINTS)
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getTotalValueLocked(from: number | null, to: number) {
+    const TARGET_POINTS = 200
+
+    const datFrom = from ? new Date(from).toISOString() : null
+    const dateTo = new Date(to).toISOString()
+
+    try {
+      return await this.protocolMetricsRepo.getTotalValueLocked(datFrom, dateTo, TARGET_POINTS)
     } catch (err) {
       console.log(err)
       throw err

@@ -1,9 +1,35 @@
 import { FastifyInstance, FastifyRequest } from "fastify"
-import { EventsRoute, GetHistoricalMarketDataRoute, sUSG, TotalSupply } from "../types.js"
+
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
-import { totalSupplySchema, aprsSchema, savingAccountsApySchema, susgHistoricalDataSchema, eventsSchema, getMarketHistoricalMarketDataSchema } from "../schemas/protocol_metrics.schema.js"
+
+import { EventsRoute, GetHistoricalMarketDataRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
+
+import {
+  totalSupplySchema,
+  aprsSchema,
+  savingAccountsApySchema,
+  susgHistoricalDataSchema,
+  eventsSchema,
+  getMarketHistoricalMarketDataSchema,
+  tvlSchema,
+} from "../schemas/protocol_metrics.schema.js"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
+  fastify.get<ProtocolTvl>("/tvl/:dateTo/:dateFrom", tvlSchema, async (request, reply) => {
+    try {
+      const { dateTo, dateFrom } = request.params
+
+      const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
+
+      const tvl = await opts.protocolMetricsService.getTotalValueLocked(parsedDateFrom, dateTo)
+
+      return reply.status(200).send(tvl)
+    } catch (err: any) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch tvl" })
+    }
+  })
+
   fastify.get<TotalSupply>("/total-supply/:dateTo/:dateFrom/:tokenAddress", totalSupplySchema, async (request, reply) => {
     try {
       const { dateTo, dateFrom, tokenAddress } = request.params

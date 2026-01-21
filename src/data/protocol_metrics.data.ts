@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client"
 import { MarketAPR, RawEvent, SavingAccountsApy } from "../types.js"
-import { AddressLike, isAddress } from "ethers";
-import { rangeToMinDate } from "../utils.js";
+import { AddressLike, isAddress } from "ethers"
+import { rangeToMinDate } from "../utils.js"
 
 export type TokenPoint = { timestamp: Date; amount: string }
 
@@ -104,6 +104,20 @@ export class ProtocolMetricsRepository {
   `
 
     return chartData
+  }
+
+  async getTotalValueLocked(
+    fromISO: string | null,
+    toISO: string,
+    targetPoints: number
+  ): Promise<{ timestamp: Date; markets: string; wts: string; pegKeepers: string; susg: string }[]> {
+    const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; markets: string; wts: string; pegKeepers: string; susg: string }[]>`
+
+      -- implement the logic
+
+  `
+
+    return rows
   }
 
   async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {
