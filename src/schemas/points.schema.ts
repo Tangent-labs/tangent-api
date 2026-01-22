@@ -193,6 +193,7 @@ export const userTasksSchema: RouteShorthandOptions = {
             description: { type: "string" },
             organisation: { type: "string" },
             pointRate: { type: "number" },
+            lastVotingPower: { type: "number" },
             status: { type: "boolean" },
             points: { type: "number" },
             tokenAddress: { type: "string" },

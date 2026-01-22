@@ -173,29 +173,56 @@ export class PointsRepository {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<UserVoteTaskRow[]>`
-    WITH agg AS (
+      WITH agg AS (
+        SELECT vote_task_id, COUNT(*)::bigint AS cnt, COALESCE(SUM(points), 0)::bigint AS points_sum
+        FROM points.vote_user_tasks
+        WHERE user_address = ${addr}
+        GROUP BY vote_task_id
+        ),
+      lastOffChainEpoch AS (
+          SELECT DISTINCT ON (task.id) task.id as "task_id", prop.id as "proposal_id" 
+          FROM points.vote_task task
+          INNER JOIN points.snapshot_scoring_choices scoringChoices ON scoringChoices.vote_task_id = task.id
+          INNER JOIN points.snapshot_organisations orga 			  ON orga.id = scoringChoices.snapshot_organisation_id
+          INNER JOIN points.votes_epoch_processed_proposal prop 	  ON prop.snapshot_organisation_id = orga.id
+          WHERE task.is_onchain is false
+          ORDER BY task.id, prop.processed_at DESC
+      ),
+      lastOnChainEpoch AS (
+          SELECT DISTINCT ON (task.id) task.id as "task_id", epoch.id as "proposal_id" 
+          FROM points.vote_task task
+          INNER JOIN points.gauge_pools       gPools 	    ON gPools.vote_task_id = task.id
+          INNER JOIN points.votes_epoch_processed_proposal epoch 	  ON epoch.gauge_controller_id = gPools.gauge_controllers_id
+          WHERE task.is_onchain is true
+          ORDER BY task.id, epoch.processed_at DESC
+      )
       SELECT
-        vote_task_id,
-        COUNT(*)::bigint                         AS cnt,
-        COALESCE(SUM(points), 0)::bigint         AS points_sum
-      FROM points.vote_user_tasks
-      WHERE user_address = ${addr}
-      GROUP BY vote_task_id
-    )
-    SELECT
       t.id::bigint                               AS "taskId",
       t.organisation                             AS "organisation",
       t.protocol                                 AS "protocol",
       t.url                                      AS "url",
       t.description                              AS "description",
       t.point_rate                               AS "pointRate",
-      (COALESCE(agg.cnt, 0) > 0)                 AS "status",
-      COALESCE(agg.points_sum, 0)::bigint        AS "points"
-    FROM points.vote_task t
-    LEFT JOIN agg ON agg.vote_task_id = t.id
-    ORDER BY t.id;
-  `
-
+      COALESCE(agg.points_sum, 0)::bigint        AS "points",
+      COALESCE((
+        SELECT vUserTask.voting_power 
+        FROM points.vote_user_tasks vUserTask
+        INNER JOIN points.vote_task vTask ON vTask.id = vUserTask.vote_task_id
+        INNER JOIN lastOnChainEpoch 		    ON vUserTask.votes_epoch_processed_proposal_id = lastOnChainEpoch.proposal_id 
+        WHERE user_address = ${addr} AND vote_task_id = t.id
+        ORDER BY vUserTask.date DESC
+        LIMIT 1
+      ),         
+      (SELECT vUserTask.voting_power 
+        FROM points.vote_user_tasks vUserTask
+        INNER JOIN points.vote_task vTask ON vTask.id = vUserTask.vote_task_id
+        INNER JOIN lastOffChainEpoch 		  ON vUserTask.votes_epoch_processed_proposal_id = lastOffChainEpoch.proposal_id 
+        WHERE user_address = ${addr} AND vote_task_id = t.id
+        ORDER BY vUserTask.date DESC
+        LIMIT 1))                                          AS "lastVotingPower" 
+      FROM points.vote_task t
+      LEFT JOIN agg ON agg.vote_task_id = t.id
+      ORDER BY t.id;`
     return rows
   }
 

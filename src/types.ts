@@ -99,6 +99,7 @@ export type UserVoteTaskRow = {
   pointRate: number
   status: boolean
   points: number
+  lastVotingPower: number
 }
 
 export type UserTaskRow = {
