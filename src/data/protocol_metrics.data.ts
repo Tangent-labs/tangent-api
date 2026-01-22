@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client"
-import { MarketAPR, RawEvent, SavingAccountsApy } from "../types.js"
+import { MarketAPR, ProtocolTvl, RawEvent, SavingAccountsApy } from "../types.js"
 import { AddressLike, isAddress } from "ethers"
 import { rangeToMinDate } from "../utils.js"
 
@@ -110,15 +110,54 @@ export class ProtocolMetricsRepository {
     fromISO: string | null,
     toISO: string,
     targetPoints: number
-  ): Promise<{ timestamp: Date; markets: string; wts: string; pegKeepers: string; susg: string }[]> {
-    const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; markets: string; wts: string; pegKeepers: string; susg: string }[]>`
-
-      -- implement the logic
-
+  ): Promise<{ timestamp: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]> {
+    const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]>`
+    WITH data AS (
+      SELECT
+        ugh."date"                     AS timestamp,
+        ugh."total_tvl"::numeric       AS total_tvl,
+        ugh."tvl_markets"::numeric     AS tvl_markets,
+        ugh."tvl_wstables"::numeric    AS tvl_wstables,
+        ugh."tvl_peg_keepers"::numeric AS tvl_peg_keepers,
+        ugh."tvl_susg"::numeric        AS tvl_susg
+      FROM "global"."usg_global_history" ugh
+      WHERE ugh."date" >= COALESCE(
+        ${fromISO}::timestamptz,
+        (SELECT MIN("date") FROM "global"."usg_global_history")
+      )
+      AND ugh."date" <= ${toISO}::timestamptz
+    ),
+    counts AS (
+      SELECT
+        GREATEST(1, CEIL(COUNT(*)::numeric / ${targetPoints}::numeric)) AS step
+      FROM data
+    ),
+    ranked AS (
+      SELECT
+        d.*,
+        ROW_NUMBER() OVER (ORDER BY d.timestamp ASC) AS rn,
+        COUNT(*)    OVER ()                          AS total_rows,
+        c.step
+      FROM data d
+      CROSS JOIN counts c
+    )
+    SELECT
+      timestamp,
+      total_tvl::text       AS total,
+      tvl_markets::text     AS markets,
+      tvl_wstables::text    AS wts,
+      tvl_peg_keepers::text AS "pegkeepers",
+      tvl_susg::text        AS susg
+    FROM ranked
+    WHERE (rn - 1) % step = 0
+       OR rn = total_rows 
+    ORDER BY timestamp ASC;
   `
 
     return rows
   }
+
+  //
 
   async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {
     const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; amount: string }[]>`
