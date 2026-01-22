@@ -110,11 +110,11 @@ export class ProtocolMetricsRepository {
     fromISO: string | null,
     toISO: string,
     targetPoints: number
-  ): Promise<{ timestamp: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]> {
-    const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]>`
+  ): Promise<{ date: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]> {
+    const rows = await this.prismaClient.$queryRaw<{ date: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]>`
     WITH data AS (
       SELECT
-        ugh."date"                     AS timestamp,
+        ugh."date"                     AS date,
         ugh."total_tvl"::numeric       AS total_tvl,
         ugh."tvl_markets"::numeric     AS tvl_markets,
         ugh."tvl_wstables"::numeric    AS tvl_wstables,
@@ -135,29 +135,27 @@ export class ProtocolMetricsRepository {
     ranked AS (
       SELECT
         d.*,
-        ROW_NUMBER() OVER (ORDER BY d.timestamp ASC) AS rn,
+        ROW_NUMBER() OVER (ORDER BY d.date ASC) AS rn,
         COUNT(*)    OVER ()                          AS total_rows,
         c.step
       FROM data d
       CROSS JOIN counts c
     )
     SELECT
-      timestamp,
-      total_tvl::text       AS total,
-      tvl_markets::text     AS markets,
-      tvl_wstables::text    AS wts,
-      tvl_peg_keepers::text AS "pegkeepers",
-      tvl_susg::text        AS susg
+      date,
+      total_tvl       AS total,
+      tvl_markets     AS markets,
+      tvl_wstables    AS wts,
+      tvl_peg_keepers AS "pegkeepers",
+      tvl_susg        AS susg
     FROM ranked
     WHERE (rn - 1) % step = 0
        OR rn = total_rows 
-    ORDER BY timestamp ASC;
+    ORDER BY date ASC;
   `
 
     return rows
   }
-
-  //
 
   async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {
     const rows = await this.prismaClient.$queryRaw<{ timestamp: Date; amount: string }[]>`
