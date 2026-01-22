@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client"
-import { MarketAPR, RawEvent, SavingAccountsApy } from "../types.js"
-import { AddressLike, isAddress } from "ethers";
-import { rangeToMinDate } from "../utils.js";
+import { MarketAPR, ProtocolTvl, RawEvent, SavingAccountsApy } from "../types.js"
+import { AddressLike, isAddress } from "ethers"
+import { rangeToMinDate } from "../utils.js"
 
 export type TokenPoint = { timestamp: Date; amount: string }
 
@@ -104,6 +104,57 @@ export class ProtocolMetricsRepository {
   `
 
     return chartData
+  }
+
+  async getTotalValueLocked(
+    fromISO: string | null,
+    toISO: string,
+    targetPoints: number
+  ): Promise<{ date: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]> {
+    const rows = await this.prismaClient.$queryRaw<{ date: Date; total: string; markets: string; wts: string; pegkeepers: string; susg: string }[]>`
+    WITH data AS (
+      SELECT
+        ugh."date"                     AS date,
+        ugh."total_tvl"::numeric       AS total_tvl,
+        ugh."tvl_markets"::numeric     AS tvl_markets,
+        ugh."tvl_wstables"::numeric    AS tvl_wstables,
+        ugh."tvl_peg_keepers"::numeric AS tvl_peg_keepers,
+        ugh."tvl_susg"::numeric        AS tvl_susg
+      FROM "global"."usg_global_history" ugh
+      WHERE ugh."date" >= COALESCE(
+        ${fromISO}::timestamptz,
+        (SELECT MIN("date") FROM "global"."usg_global_history")
+      )
+      AND ugh."date" <= ${toISO}::timestamptz
+    ),
+    counts AS (
+      SELECT
+        GREATEST(1, CEIL(COUNT(*)::numeric / ${targetPoints}::numeric)) AS step
+      FROM data
+    ),
+    ranked AS (
+      SELECT
+        d.*,
+        ROW_NUMBER() OVER (ORDER BY d.date ASC) AS rn,
+        COUNT(*)    OVER ()                          AS total_rows,
+        c.step
+      FROM data d
+      CROSS JOIN counts c
+    )
+    SELECT
+      date,
+      total_tvl       AS total,
+      tvl_markets     AS markets,
+      tvl_wstables    AS wts,
+      tvl_peg_keepers AS "pegkeepers",
+      tvl_susg        AS susg
+    FROM ranked
+    WHERE (rn - 1) % step = 0
+       OR rn = total_rows 
+    ORDER BY date ASC;
+  `
+
+    return rows
   }
 
   async getTotalSupply(address: string, fromISO: string | null, toISO: string, targetPoints: number): Promise<{ timestamp: Date; amount: string }[]> {

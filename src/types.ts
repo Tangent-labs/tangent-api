@@ -40,6 +40,13 @@ export interface TotalSupply {
   }
 }
 
+export interface ProtocolTvl {
+  Params: {
+    dateTo: number
+    dateFrom: string | number
+  }
+}
+
 export interface sUSG {
   Params: {
     dateTo: number
