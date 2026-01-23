@@ -8,14 +8,34 @@ export class PointsService {
     this.pointsRepository = pointsRepository
   }
 
-  async fetchLpLeaderboard() {
-    const leaderboard = await this.pointsRepository.fetchLpLeaderboard()
-    return leaderboard.filter((_, index) => index < 10)
+  async fetchLpLeaderboard(userAddress: string) {
+    const fullLeaderboard = await this.pointsRepository.fetchLpLeaderboard()
+
+    const userIndex = fullLeaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
+
+    if (userIndex === -1 || userIndex < 10) {
+      return fullLeaderboard.slice(0, 10)
+    }
+
+    const top10 = fullLeaderboard.slice(0, 10)
+    const user = fullLeaderboard[userIndex]
+
+    return [...top10, user]
   }
 
-  async fetchVoteLeaderboard() {
-    const leaderboard = await this.pointsRepository.fetchVoteLeaderboard()
-    return leaderboard.filter((_, index) => index < 10)
+  async fetchVoteLeaderboard(userAddress: string) {
+    const fullLeaderboard = await this.pointsRepository.fetchVoteLeaderboard()
+
+    const userIndex = fullLeaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
+
+    if (userIndex === -1 || userIndex < 10) {
+      return fullLeaderboard.slice(0, 10)
+    }
+
+    const top10 = fullLeaderboard.slice(0, 10)
+    const user = fullLeaderboard[userIndex]
+
+    return [...top10, user]
   }
 
   async fetchGodsonsLeaderboard(userAddress: AddressLike) {
