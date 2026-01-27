@@ -14,6 +14,13 @@ const leaderboardItem = {
 export const leaderboardsSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Points program"],
+    params: {
+      type: "object",
+      required: ["userAddress"],
+      properties: {
+        userAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+    },
     response: {
       200: {
         type: "object",

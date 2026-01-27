@@ -82,10 +82,12 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
     }
   })
 
-  fastify.get("/leaderboards", leaderboardsSchema, async (request, reply) => {
+  fastify.get<{ Params: { userAddress: string } }>("/leaderboards/:userAddress", leaderboardsSchema, async (request, reply) => {
     try {
-      const lpLeaderboard = await opts.pointsService.fetchLpLeaderboard()
-      const voteLeaderboard = await opts.pointsService.fetchVoteLeaderboard()
+      const { userAddress } = request.params
+
+      const lpLeaderboard = await opts.pointsService.fetchLpLeaderboard(userAddress)
+      const voteLeaderboard = await opts.pointsService.fetchVoteLeaderboard(userAddress)
 
       return reply.status(200).send({ lpLeaderboard, voteLeaderboard })
     } catch (err: any) {
