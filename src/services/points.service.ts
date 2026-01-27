@@ -8,34 +8,36 @@ export class PointsService {
     this.pointsRepository = pointsRepository
   }
 
-  async fetchLpLeaderboard(userAddress: string) {
-    const fullLeaderboard = await this.pointsRepository.fetchLpLeaderboard()
-
-    const userIndex = fullLeaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
+  computeLeaderboard(
+    leaderboard: {
+      rank: number
+      address: AddressLike
+      pts: number
+    }[],
+    userAddress: string
+  ) {
+    const userIndex = leaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
 
     if (userIndex === -1 || userIndex < 10) {
-      return fullLeaderboard.slice(0, 10)
+      return leaderboard.slice(0, 10)
     }
 
-    const top10 = fullLeaderboard.slice(0, 10)
-    const user = fullLeaderboard[userIndex]
+    const top10 = leaderboard.slice(0, 10)
+    const user = leaderboard[userIndex]
 
     return [...top10, user]
   }
 
+  async fetchLpLeaderboard(userAddress: string) {
+    const lpLeaderboard = await this.pointsRepository.fetchLpLeaderboard()
+    const computedLeaderboard = this.computeLeaderboard(lpLeaderboard, userAddress)
+    return computedLeaderboard
+  }
+
   async fetchVoteLeaderboard(userAddress: string) {
-    const fullLeaderboard = await this.pointsRepository.fetchVoteLeaderboard()
-
-    const userIndex = fullLeaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
-
-    if (userIndex === -1 || userIndex < 10) {
-      return fullLeaderboard.slice(0, 10)
-    }
-
-    const top10 = fullLeaderboard.slice(0, 10)
-    const user = fullLeaderboard[userIndex]
-
-    return [...top10, user]
+    const voteLeaderboard = await this.pointsRepository.fetchVoteLeaderboard()
+    const computedLeaderboard = this.computeLeaderboard(voteLeaderboard, userAddress)
+    return computedLeaderboard
   }
 
   async fetchGodsonsLeaderboard(userAddress: AddressLike) {
