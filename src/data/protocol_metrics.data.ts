@@ -18,7 +18,7 @@ export class ProtocolMetricsRepository {
     }
 
     const marketResult = await this.prismaClient.$queryRaw<{ id: string }[]>`
-        SELECT id FROM events.usg_markets WHERE LOWER(contract_address) = LOWER(${market})
+        SELECT id FROM global.usg_markets WHERE LOWER(contract_address) = LOWER(${market})
       `
     if (marketResult.length === 0) throw new Error(`No market found for contract_address: ${market}`)
 
@@ -84,7 +84,7 @@ export class ProtocolMetricsRepository {
     WITH filtered_data AS (
       SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
       FROM global.market_global_data AS mgd
-      JOIN events.usg_markets AS um ON mgd.market_id = um.id
+      JOIN global.usg_markets AS um ON mgd.market_id = um.id
       WHERE um.contract_address = ${marketAddress}
         -- mgd.timestamp is timestamp WITHOUT time zone; interpret it as UTC
         AND (mgd.timestamp AT TIME ZONE 'UTC') > ${minDate}::timestamptz
@@ -214,7 +214,7 @@ export class ProtocolMetricsRepository {
         l."timestamp",
         l."apr_current",
         l."apr_projected"
-      FROM "events"."usg_markets" m
+      FROM "global"."usg_markets" m
       JOIN "global"."latest_global_data" l ON l."market_id" = m."id"
      `
 

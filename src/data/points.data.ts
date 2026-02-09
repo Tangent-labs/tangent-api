@@ -18,14 +18,14 @@ export class PointsRepository {
     const rows = await this.prismaClient.$queryRaw<Array<{ lp_points: bigint | null; vote_points: bigint | null }>>`
     WITH godfather AS (
       SELECT id
-      FROM "global"."user"
+      FROM points.user
       WHERE address = ${address}
       LIMIT 1
     ),
     godsons AS (
       SELECT u.id, u.address
-      FROM "global"."referral_usages" ru
-      JOIN "global"."user" u
+      FROM points.referral_usages ru
+      JOIN points.user u
         ON u.id = ru.godson_id
       WHERE ru.godfather_id = (SELECT id FROM godfather)
     ),
@@ -33,7 +33,7 @@ export class PointsRepository {
       SELECT
         COALESCE(SUM(u.lp_referral_points), 0)   AS lp_referral_points,
         COALESCE(SUM(u.vote_referral_points), 0) AS vote_referral_points
-      FROM "global"."user" u
+      FROM "points"."user" u
       WHERE u.id IN (SELECT id FROM godsons)
     ),
     lp AS (
@@ -78,7 +78,7 @@ export class PointsRepository {
       COALESCE(u.vote_referral_points, 0)::bigint AS vote_referral_points,
       b.base_points + COALESCE(u.vote_referral_points, 0)::bigint AS total_points
     FROM base b
-    LEFT JOIN "global"."user" u
+    LEFT JOIN "points"."user" u
       ON u.address = ${addr}
     LIMIT 1;
   `
@@ -114,7 +114,7 @@ export class PointsRepository {
   ),
   referral AS (
     SELECT COALESCE(u.lp_referral_points, 0)::bigint AS referral_points
-    FROM "global"."user" u
+    FROM "points"."user" u
     WHERE u.address = ${addr}
     LIMIT 1
   ),
@@ -126,7 +126,7 @@ export class PointsRepository {
     FROM points.lp_user_tasks ut
     JOIN points.lp_task t ON t.id = ut.task_id
     WHERE ut.user_address = ${addr}
-      AND ut.closed IS NULL
+      AND ut.closed_date IS NULL
   ),
   per_task AS (
     SELECT
@@ -234,7 +234,7 @@ export class PointsRepository {
     SELECT task_id, COUNT(*) AS open_count
     FROM points.lp_user_tasks
     WHERE user_address = ${addr}
-      AND closed IS NULL
+      AND closed_date IS NULL
     GROUP BY task_id
   ),
   up_sum AS (
@@ -362,17 +362,17 @@ export class PointsRepository {
     const rows = await this.prismaClient.$queryRaw<{ rank: number; address: string; lpPoints: bigint; votePts: bigint }[]>`
       WITH godsons AS (
         SELECT gs."address"
-        FROM "global"."user" gf
-        JOIN "global"."referral_usages" ru
+        FROM "points"."user" gf
+        JOIN "points"."referral_usages" ru
           ON ru."godfather_id" = gf."id"
-        JOIN "global"."user" gs
+        JOIN "points"."user" gs
           ON gs."id" = ru."godson_id"
         WHERE gf."address" = ${userAddress.toString()}
       ),
       lp AS (
         SELECT u."address" AS user_address,
                (COALESCE(SUM(up."points"), 0) + COALESCE(SUM(up."booster_points"), 0) + COALESCE(u."lp_referral_points", 0))::bigint AS lp_pts
-        FROM "global"."user" u
+        FROM "points"."user" u
         LEFT JOIN "points"."lp_user_points" up
           ON up."user_address" = u."address"
         WHERE u."address" IN (SELECT "address" FROM godsons)
@@ -381,7 +381,7 @@ export class PointsRepository {
       vote AS (
         SELECT u."address" AS user_address,
                (COALESCE(SUM(vt."points"), 0) + COALESCE(u."vote_referral_points", 0))::bigint AS vote_pts
-        FROM "global"."user" u
+        FROM "points"."user" u
         LEFT JOIN "points"."vote_user_tasks" vt
           ON vt."user_address" = u."address"
         WHERE u."address" IN (SELECT "address" FROM godsons)
