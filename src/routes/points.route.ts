@@ -11,6 +11,7 @@ import {
 import { UserTasks, UserPoints } from "../types.js"
 import { PointsService } from "../services/points.service.js"
 import { AddressLike } from "ethers"
+import { toError } from "../utils.js"
 
 export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts: { pointsService: PointsService }) {
   fastify.get<UserTasks>("/tasks/:userAddress", userTasksSchema, async (request, reply) => {
@@ -19,7 +20,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const result = await opts.pointsService.getUserTasks(userAddress)
 
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user lp tasks" })
     }
@@ -30,7 +31,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const { userAddress } = request.params
       const result = await opts.pointsService.getUserVoteTasks(userAddress)
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user vote tasks" })
     }
@@ -41,7 +42,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const { userAddress, dateFrom } = request.params
       const result = await opts.pointsService.getLpUserPoints(userAddress, dateFrom)
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user points" })
     }
@@ -52,7 +53,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const { userAddress } = request.params
       const result = await opts.pointsService.getVoteUserPoints(userAddress)
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user points" })
     }
@@ -63,7 +64,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const { userAddress } = request.params
       const result = await opts.pointsService.getUserRefereesPoints(userAddress)
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user points" })
     }
@@ -76,7 +77,7 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const boost = await opts.pointsService.getUserBoostMultiplicator(userAddress)
 
       return reply.status(200).send({ result, boost })
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch user boosts" })
     }
@@ -90,9 +91,10 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const voteLeaderboard = await opts.pointsService.fetchVoteLeaderboard(userAddress)
 
       return reply.status(200).send({ lpLeaderboard, voteLeaderboard })
-    } catch (err: any) {
-      request.log.error("Error processing leaderboards :", err)
-      return reply.status(err.message.includes("Invalid") ? 400 : 500).send({ error: err.message })
+    } catch (err) {
+      request.log.error({ msg: "Error processing leaderboards :", obj: err })
+      const errTyped = toError(err)
+      return reply.status(errTyped.message.includes("Invalid") ? 400 : 500).send({ error: errTyped.message })
     }
   })
 
@@ -103,9 +105,10 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       const data = await opts.pointsService.fetchGodsonsLeaderboard(address)
 
       return reply.status(200).send(data)
-    } catch (err: any) {
-      request.log.error("Error processing godsons leaderboard :", err)
-      return reply.status(err.message.includes("Invalid") ? 400 : 500).send({ error: err.message })
+    } catch (err) {
+      request.log.error({ msg: "Error processing godsons leaderboard :", err })
+      const errTyped = toError(err)
+      return reply.status(errTyped.message.includes("Invalid") ? 400 : 500).send({ error: errTyped.message })
     }
   })
 }

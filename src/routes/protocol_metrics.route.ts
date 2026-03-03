@@ -24,7 +24,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const tvl = await opts.protocolMetricsService.getTotalValueLocked(parsedDateFrom, dateTo)
 
       return reply.status(200).send(tvl)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch tvl" })
     }
@@ -39,7 +39,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const totalSupply = await opts.protocolMetricsService.getTotalSupply(tokenAddress, parsedDateFrom, dateTo)
 
       return reply.status(200).send(totalSupply)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch total supply" })
     }
@@ -50,7 +50,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const APRs = await opts.protocolMetricsService.getLastMarketAprs()
 
       return reply.status(200).send(APRs)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
     }
@@ -65,7 +65,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
         fastify.setLongCache(cacheKey, apys, 10_000)
       }
       return reply.status(200).send(apys)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
     }
@@ -80,7 +80,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const susgAPY = await opts.protocolMetricsService.getSUSGApy(parsedDateFrom, dateTo)
 
       return reply.status(200).send(susgAPY)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch total supply" })
     }
@@ -95,7 +95,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const transformedEvents = opts.protocolMetricsService.transformEvents(rawEvents)
       fastify.log.info(`Query returned ${transformedEvents.length} rows for account ${account}: ${JSON.stringify(transformedEvents)}`)
       return transformedEvents
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch events" })
     }
@@ -107,7 +107,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const { range = "all" } = request.query
       const result = await opts.protocolMetricsService.getMarketHistoricalData(marketAddress, dateFrom, range)
       return reply.status(200).send(result)
-    } catch (err: any) {
+    } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch events" })
     }

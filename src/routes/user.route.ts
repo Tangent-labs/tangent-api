@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { UserService } from "../services/user.service.js"
+import { toError } from "../utils.js"
 
 interface RegisterUser {
   Body: { address: string }
@@ -18,8 +19,9 @@ export async function registerUserRoute(fastify: FastifyInstance, opts: { userSe
         }
 
         done()
-      } catch (e: any) {
-        reply.code(e.statusCode || 401).send({ error: e.message || "Unauthorized" })
+      } catch (err) {
+        const errTyped = toError(err)
+        reply.code(errTyped.statusCode || 401).send({ error: errTyped.message || "Unauthorized" })
       }
     },
     handler: async (request, reply) => {
@@ -28,9 +30,10 @@ export async function registerUserRoute(fastify: FastifyInstance, opts: { userSe
         await opts.userService.registerAddress(address.toLowerCase())
 
         reply.code(200).send({ ok: true })
-      } catch (err: any) {
-        fastify.log.error(err)
-        reply.code(err.statusCode || 500).send({ error: err.message || `Failed to register user with address ${address}` })
+      } catch (err) {
+        const errTyped = toError(err)
+        fastify.log.error(errTyped)
+        reply.code(errTyped?.statusCode || 500).send({ error: errTyped.message || `Failed to register user with address ${address}` })
       }
     },
   })

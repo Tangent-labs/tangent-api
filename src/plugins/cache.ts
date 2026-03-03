@@ -12,11 +12,13 @@ interface CacheOptions {
 
 declare module "fastify" {
   interface FastifyInstance {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     shortCache: LRUCache<string, any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     longCache: LRUCache<string, any>
     generateCacheKey: (request: FastifyRequest, customPrefix?: string) => string
-    setLongCache: (key: string, value: any, ttlMs?: number) => void
-    getLongCache: (key: string) => any
+    setLongCache: (key: string, value: unknown, ttlMs?: number) => void
+    getLongCache: <T = unknown>(key: string) => T | undefined
   }
 }
 
@@ -24,14 +26,14 @@ const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
   // Default options
   const { shortMax = 100, longMax = 500, includeQuery = false, keyPrefix = "", monitoring = false } = opts || {}
 
-  // Short cache (2 minutes)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const shortCache = new LRUCache<string, any>({
     max: shortMax,
     ttl: 1000 * 60 * 2,
     allowStale: false,
   })
 
-  // Long cache : TTL per item (customizable)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const longCache = new LRUCache<string, any>({
     max: longMax,
     ttl: 1000 * 60 * 60, // 1H
@@ -50,7 +52,7 @@ const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
   })
 
   // Helper for longCache allow custom TTL
-  fastify.decorate("setLongCache", (key: string, value: any, ttlMs?: number) => {
+  fastify.decorate("setLongCache", (key: string, value: unknown, ttlMs?: number) => {
     if (ttlMs) {
       longCache.set(key, value, { ttl: ttlMs })
     } else {
@@ -58,8 +60,8 @@ const cachePlugin: FastifyPluginAsync<CacheOptions> = async (fastify, opts) => {
     }
   })
 
-  fastify.decorate("getLongCache", (key: string) => {
-    return longCache.get(key)
+  fastify.decorate("getLongCache", <T = unknown>(key: string): T | undefined => {
+    return longCache.get(key) as T | undefined
   })
 
   // Inject caches

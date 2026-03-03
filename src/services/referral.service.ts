@@ -1,6 +1,7 @@
 import { ethers } from "ethers"
 import { ReferralInput, UserStatus } from "../types.js"
 import { ReferralRepository } from "../data/referral.data.js"
+import { FastifyBaseLogger } from "fastify"
 
 export class ReferralService {
   referralRepo: ReferralRepository
@@ -9,7 +10,7 @@ export class ReferralService {
     this.referralRepo = referralRepo
   }
 
-  async verifyAndCreateReferralRelationship(input: ReferralInput, logger: any): Promise<{ message: string }> {
+  async verifyAndCreateReferralRelationship(input: ReferralInput, logger: FastifyBaseLogger): Promise<{ message: string }> {
     const { referralCode, signature, account, now } = input
 
     const referrer = await this.referralRepo.getReferralByCode(referralCode)
@@ -26,8 +27,8 @@ export class ReferralService {
     try {
       recoveredAddress = ethers.verifyMessage(message, signature)
     } catch (err) {
-      logger.error("Signature verification failed:", err)
-      throw new Error("Invalid signature")
+      logger.error({ msg: "Signature verification failed:", err })
+      throw new Error("Invalid signature", { cause: err })
     }
 
     if (recoveredAddress.toLowerCase() !== account.toLowerCase()) {
@@ -46,7 +47,7 @@ export class ReferralService {
     }
   }
 
-  async generateNewReferralCode(account: string, logger: any): Promise<{ message: string }> {
+  async generateNewReferralCode(account: string, logger: FastifyBaseLogger): Promise<{ message: string }> {
     try {
       this.checkAccount(account)
 
@@ -54,20 +55,20 @@ export class ReferralService {
       logger.info(`Generated referral code ${code} for account ${account}`)
       return { message: code }
     } catch (err) {
-      logger.error("Error generating referral code:", err)
+      logger.error({ msg: "Error generating referral code:", err })
       throw err
     }
   }
 
-  async getReferralStatus(account: string, logger: any): Promise<UserStatus> {
+  async getReferralStatus(account: string, logger: FastifyBaseLogger): Promise<UserStatus> {
     try {
       this.checkAccount(account)
 
       const status = await this.referralRepo.getUserStatus(account.toLowerCase())
-      logger.info(`Fetched referral status for account ${account}:`, status)
+      logger.info({ msg: `Fetched referral status for account ${account}:`, status })
       return status
     } catch (err) {
-      logger.error("Error fetching referral status:", err)
+      logger.error({ msg: "Error fetching referral status:", err })
       throw err
     }
   }

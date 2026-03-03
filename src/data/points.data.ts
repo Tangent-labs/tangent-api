@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client"
-import { GodsonsLeaderboardItem, RawEvent, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
+import { GodsonsLeaderboardItem, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 import { AddressLike } from "ethers"
 
 export class PointsRepository {

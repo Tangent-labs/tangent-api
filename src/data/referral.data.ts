@@ -18,7 +18,7 @@ export class ReferralRepository {
       })
       return user
     } catch (err) {
-      throw new Error(`Failed to fetch user with code ${code}`)
+      throw new Error(`Failed to fetch user with code ${code}`, { cause: err })
     }
   }
 
@@ -47,7 +47,7 @@ export class ReferralRepository {
 
       return status
     } catch (err) {
-      throw new Error(`Failed to fetch user status for ${address}`)
+      throw new Error(`Failed to fetch user status for ${address}`, { cause: err })
     }
   }
 
@@ -61,7 +61,7 @@ export class ReferralRepository {
 
       return false
     } catch (err) {
-      throw new Error(`Failed to check usage for address ${address}`)
+      throw new Error(`Failed to check usage for address ${address}`, { cause: err })
     }
   }
 
@@ -74,7 +74,7 @@ export class ReferralRepository {
   async processReferral(referralCode: string, address: string, now: string): Promise<void> {
     const addr = address.toLowerCase()
 
-    await this.prismaClient.$transaction(async (tx: any) => {
+    await this.prismaClient.$transaction(async (tx) => {
       const referrer = await tx.user.findFirst({
         where: { code: referralCode },
         select: { id: true, address: true },
@@ -158,7 +158,7 @@ export class ReferralRepository {
 
       return code
     } catch (err) {
-      throw new Error(`Failed to generate referral code for address ${address}`)
+      throw new Error(`Failed to generate referral code for address ${address}`, { cause: err })
     }
   }
 }

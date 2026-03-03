@@ -3,7 +3,7 @@ import fastifyCors from "@fastify/cors"
 import Postgres from "@fastify/postgres"
 import swagger from "@fastify/swagger"
 import swaggerUI from "@fastify/swagger-ui"
-import rateLimit from '@fastify/rate-limit'
+import rateLimit from "@fastify/rate-limit"
 
 import Fastify, { FastifyInstance } from "fastify"
 
@@ -24,6 +24,11 @@ import { PredepositRepository } from "./data/predeposit.data.js"
 import { registerPredepositRoutes } from "./routes/predeposit.route.js"
 import { registerPointsProgramRoutes } from "./routes/points.route.js"
 import { PointsService } from "./services/points.service.js"
+import { MonitoringRepository } from "./data/monitoring.data.js"
+import { MonitoringService } from "./services/monitoring.service.js"
+import { registerMonitoringRoute } from "./routes/monitoring.route.js"
+import websocketPlugin from "./plugins/websocket.js"
+import monitoringWsPlugin from "./plugins/monitoring-ws.js"
 
 dotenv.config()
 
@@ -32,9 +37,10 @@ const fastify: FastifyInstance = Fastify({ logger: true })
 // Register plugins
 fastify.register(prismaPlugin)
 fastify.register(cachePlugin)
+fastify.register(websocketPlugin)
 fastify.register(rateLimit, {
-  max: 100,            // max requests
-  timeWindow: '1 minute' // per IP per time window
+  max: 100, // max requests
+  timeWindow: "1 minute", // per IP per time window
 })
 
 // 1️⃣ Generate OpenAPI spec
@@ -87,11 +93,16 @@ fastify.register(async (f) => {
   const predepositRepository = new PredepositRepository(f.prisma)
   const predepositService = new PredepositService(predepositRepository)
 
+  const monitoringRepository = new MonitoringRepository(f.prisma)
+  const monitoringService = new MonitoringService(monitoringRepository)
+
   fastify.register(registerPointsProgramRoutes, { pointsService })
   fastify.register(registerReferralRoute, { referralService })
   fastify.register(registerProtocolMetricsRoute, { protocolMetricsService })
   fastify.register(registerPredepositRoutes, { predepositService })
   fastify.register(registerUserRoute, { userService })
+  fastify.register(registerMonitoringRoute, { monitoringService })
+  fastify.register(monitoringWsPlugin, { monitoringService })
 })
 
 // Graceful shutdown

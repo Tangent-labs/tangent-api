@@ -2,6 +2,7 @@ import { ReferralInput } from "../types.js"
 import { FastifyInstance, FastifyRequest } from "fastify"
 import { ReferralService } from "../services/referral.service.js"
 import { generateReferralSchema, referralSchema, referralStatusSchema } from "../schemas/referral.schema.js"
+import { toError } from "../utils.js"
 
 interface ReferralRoute {
   Body: ReferralInput
@@ -25,9 +26,10 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
       const result = await opts.referralService.verifyAndCreateReferralRelationship(request.body, fastify.log)
 
       return reply.status(200).send(result)
-    } catch (err: any) {
-      request.log.error("Error processing referral:", err)
-      return reply.status(err.message.includes("Invalid") || err.message.includes("already") ? 400 : 500).send({ error: err.message })
+    } catch (err) {
+      request.log.error({ msg: "Error processing referral:", err })
+      const errTyped = toError(err)
+      return reply.status(errTyped.message.includes("Invalid") || errTyped.message.includes("already") ? 400 : 500).send({ error: errTyped.message })
     }
   })
 
@@ -36,11 +38,12 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
       const { account } = request.body
       const result = await opts.referralService.generateNewReferralCode(account, fastify.log)
       return reply.status(200).send(result)
-    } catch (err: any) {
-      request.log.error("Error generating referral code:", err)
+    } catch (err) {
+      request.log.error({ msg: "Error generating referral code:", err })
+      const errTyped = toError(err)
       return reply
-        .status(err.message.includes("Invalid") || err.message.includes("already") ? 400 : 500)
-        .send({ error: err.message || "Failed to generate referral code" })
+        .status(errTyped.message.includes("Invalid") || errTyped.message.includes("already") ? 400 : 500)
+        .send({ error: errTyped.message || "Failed to generate referral code" })
     }
   })
 
@@ -49,9 +52,10 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
       const { account } = request.query
       const result = await opts.referralService.getReferralStatus(account, fastify.log)
       return reply.status(200).send(result)
-    } catch (err: any) {
-      request.log.error("Error fetching referral status:", err)
-      return reply.status(err.message.includes("User not found") ? 404 : 400).send({ error: err.message || "Failed to fetch referral status" })
+    } catch (err) {
+      request.log.error({ msg: "Error fetching referral status:", err })
+      const errTyped = toError(err)
+      return reply.status(errTyped.message.includes("User not found") ? 404 : 400).send({ error: errTyped.message || "Failed to fetch referral status" })
     }
   })
 }
