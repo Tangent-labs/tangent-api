@@ -1,3 +1,8 @@
+export function toError(err: unknown): Error & { statusCode?: number } {
+  if (err instanceof Error) return err as Error & { statusCode?: number }
+  return new Error(String(err))
+}
+
 /**
  *
  * @param range provided by the frontend

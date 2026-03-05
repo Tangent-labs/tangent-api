@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client"
-import { MarketAPR, ProtocolTvl, RawEvent, SavingAccountsApy } from "../types.js"
+import { MarketAPR, RawEvent, SavingAccountsApy } from "../types.js"
 import { AddressLike, isAddress } from "ethers"
 import { rangeToMinDate } from "../utils.js"
 
@@ -80,7 +80,9 @@ export class ProtocolMetricsRepository {
   async getHistoricalData(marketAddress: AddressLike, dateFrom: string, range: string, rowAmounts: number = 100) {
     const minDate = rangeToMinDate(range, dateFrom) // always a string (incl. for "all")
 
-    const chartData = await this.prismaClient.$queryRaw<any[]>`
+    const chartData = await this.prismaClient.$queryRaw<
+      { timestamp: Date; tvl_usd: Prisma.Decimal; total_debt: Prisma.Decimal; ir_apy: Prisma.Decimal; apr_current: Prisma.Decimal }[]
+    >`
     WITH filtered_data AS (
       SELECT mgd.id, mgd.timestamp, mgd.tvl_usd, mgd.total_debt, mgd.ir_apy, um.contract_address, mgd.apr_current
       FROM global.market_global_data AS mgd

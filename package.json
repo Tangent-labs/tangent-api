@@ -4,13 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
     "build": "node build.js",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "tangent:feed-codes": "tsx scripts/feed_referral_codes.ts",
     "tangent:feed-total-supply": "tsx src/scripts/feed_total_supply.ts",
     "prisma:generate": "prisma generate --schema node_modules/@tangent/prisma-schema-shared/schema.prisma",
-    "prisma:push": "prisma db push --schema node_modules/@tangent/prisma-schema-shared/schema.prisma"
+    "prisma:push": "prisma db push --schema node_modules/@tangent/prisma-schema-shared/schema.prisma",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +28,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/swagger": "^9.5.2",
     "@fastify/swagger-ui": "^5.2.3",
+    "@fastify/websocket": "^11.2.0",
     "@prisma/client": "^6.13.0",
     "@tangent/prisma-schema-shared": "github:Tangent-labs/prisma-schema-shared#main",
     "dotenv": "^16.5.0",
@@ -32,10 +38,16 @@
     "nanoid": "^5.1.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.18.8",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.25.10",
+    "eslint": "^10.0.2",
+    "prettier": "^3.8.1",
     "prisma": "^6.13.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
   }
 }
