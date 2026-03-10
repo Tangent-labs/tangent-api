@@ -1,4 +1,4 @@
-import { MonitoringRepository } from "../data/monitoring.data.js"
+import { MonitoringRepository, BlockRow } from "../data/monitoring.data.js"
 import { ParsedMonitoringQuery, resolveFiltersForModule } from "./monitoring/monitoring.filters.js"
 import { getThresholds } from "./monitoring/monitoring.thresholds.js"
 import {
@@ -46,17 +46,44 @@ export class MonitoringService {
     this.rpcUrl = process.env.RPC_URL || ""
   }
 
+  private async fetchOnchainBlock(): Promise<{ blockNumber: number; blockTimestamp: number }> {
+    if (!this.rpcUrl) return { blockNumber: 0, blockTimestamp: 0 }
+    try {
+      const numRes = await fetch(this.rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }),
+      })
+      const numJson = (await numRes.json()) as { result: string }
+      const blockNumber = parseInt(numJson.result, 16)
+
+      const blkRes = await fetch(this.rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getBlockByNumber", params: [numJson.result, false], id: 2 }),
+      })
+      const blkJson = (await blkRes.json()) as { result: { timestamp: string } }
+      const blockTimestamp = parseInt(blkJson.result.timestamp, 16)
+
+      return { blockNumber, blockTimestamp }
+    } catch {
+      return { blockNumber: 0, blockTimestamp: 0 }
+    }
+  }
+
   async getModules(parsed: ParsedMonitoringQuery, cache: CacheHelpers<MonitoringModuleDataMap[MonitoringModuleName]>): Promise<MonitoringResponse> {
     const modules: Partial<MonitoringModuleDataMap> = {}
     const cachedAt: Partial<Record<MonitoringModuleName, string>> = {}
 
+    const [blockRow, onchainBlock] = await Promise.all([this.repo.getMaxBlock(), this.fetchOnchainBlock()])
+
     const moduleHandlers: { [K in MonitoringModuleName]: () => Promise<MonitoringModuleDataMap[K]> } = {
-      overview: () => this.getOverview(),
+      overview: () => this.getOverview(blockRow, onchainBlock),
       collateralization: () => this.getCollateralization(parsed),
       liquidation_distance: () => this.getLiquidationDistance(parsed),
       peg: () => this.getPeg(parsed),
       price_variation: () => this.getPriceVariation(parsed),
-      oracle_sanity: () => this.getOracleSanity(parsed),
+      oracle_sanity: () => this.getOracleSanity(parsed, onchainBlock.blockTimestamp),
       debt_utilization: () => this.getDebtUtilization(parsed),
       tvl_variation: () => this.getTvlVariation(parsed),
       liquidations: () => this.getLiquidations(parsed),
@@ -97,39 +124,23 @@ export class MonitoringService {
     }
   }
 
-  private async getOverview(): Promise<OverviewData> {
+  private async getOverview(blockRow: BlockRow | null, onchainBlock: { blockNumber: number; blockTimestamp: number }): Promise<OverviewData> {
     const thresholds = getThresholds()
-    const [positions, blockRow] = await Promise.all([this.repo.getOverviewPositions(thresholds.collateralization.warning_multiplier), this.repo.getMaxBlock()])
+    const positions = await this.repo.getOverviewPositions(thresholds.collateralization.warning_multiplier)
 
-    let onchainBlock = 0
-    let indexerDelaySeconds = 0
     const indexedBlock = blockRow ? Number(blockRow.block_id) : 0
+    let indexerDelaySeconds = 0
 
-    if (this.rpcUrl) {
-      try {
-        const res = await fetch(this.rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }),
-        })
-        const json = (await res.json()) as { result: string }
-        onchainBlock = parseInt(json.result, 16)
-
-        if (blockRow?.created_at) {
-          const blockTimestamp = blockRow.created_at.getTime() / 1000
-          const now = Date.now() / 1000
-          indexerDelaySeconds = Math.round(now - blockTimestamp)
-        }
-      } catch {
-        // RPC call failed, leave defaults
-      }
+    if (blockRow?.created_at && onchainBlock.blockTimestamp > 0) {
+      const indexedBlockTimestamp = Math.round(blockRow.created_at.getTime() / 1000)
+      indexerDelaySeconds = Math.max(0, onchainBlock.blockTimestamp - indexedBlockTimestamp)
     }
 
     return {
       active_positions: Number(positions.active_positions),
       at_risk_positions: Number(positions.at_risk_positions),
       indexed_block: indexedBlock,
-      onchain_block: onchainBlock,
+      onchain_block: onchainBlock.blockNumber,
       indexer_delay_seconds: indexerDelaySeconds,
     }
   }
@@ -198,6 +209,7 @@ export class MonitoringService {
         spot_price: r.price,
         ref_price: r.ref_price,
         deviation_pct: r.deviation_pct,
+        timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
         status: computePegStatus(r.deviation_pct, t),
       }
     })
@@ -239,21 +251,25 @@ export class MonitoringService {
     return items
   }
 
-  private async getOracleSanity(parsed: ParsedMonitoringQuery): Promise<OracleSanityItem[]> {
+  private async getOracleSanity(parsed: ParsedMonitoringQuery, onchainBlockTimestamp: number): Promise<OracleSanityItem[]> {
     const filters = resolveFiltersForModule("oracle_sanity", parsed)
     const t = getThresholds().oracle_sanity
 
     const allRows = await this.repo.getOracleSanityRows()
     const rows = filters.market_address ? allRows.filter((r) => r.market_address.toLowerCase() === filters.market_address!.toLowerCase()) : allRows
 
-    let items: OracleSanityItem[] = rows.map((r) => ({
-      market_name: r.market_name,
-      oracle_price: r.oracle_price,
-      offchain_price: r.offchain_price,
-      deviation_pct: r.deviation_pct,
-      age_seconds: r.age_seconds,
-      status: computeOracleSanityStatus(r.deviation_pct, r.age_seconds, t),
-    }))
+    let items: OracleSanityItem[] = rows.map((r) => {
+      const snapshotEpoch = r.timestamp instanceof Date ? Math.round(r.timestamp.getTime() / 1000) : 0
+      const ageSeconds = onchainBlockTimestamp > 0 ? Math.max(0, onchainBlockTimestamp - snapshotEpoch) : 0
+      return {
+        market_name: r.market_name,
+        oracle_price: r.oracle_price,
+        offchain_price: r.offchain_price,
+        deviation_pct: r.deviation_pct,
+        age_seconds: ageSeconds,
+        status: computeOracleSanityStatus(r.deviation_pct, ageSeconds, t),
+      }
+    })
 
     if (filters.status) {
       items = items.filter((i) => i.status === filters.status)

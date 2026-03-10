@@ -33,6 +33,7 @@ interface PegRow {
   price: number
   ref_price: number
   deviation_pct: number
+  timestamp: Date
 }
 
 interface OracleSanityRow {
@@ -41,7 +42,7 @@ interface OracleSanityRow {
   oracle_price: number
   offchain_price: number
   deviation_pct: number
-  age_seconds: number
+  timestamp: Date
 }
 
 interface DebtUtilizationRow {
@@ -98,7 +99,7 @@ interface LtvDistributionRow {
   bad_debt: number
 }
 
-interface BlockRow {
+export interface BlockRow {
   block_id: bigint
   created_at: Date | null
 }
@@ -271,7 +272,8 @@ export class MonitoringRepository {
         pmt.peg_type,
         pss.price,
         pss.ref_price,
-        pss.deviation_pct
+        pss.deviation_pct,
+        pss.timestamp
       FROM global.peg_monitored_tokens pmt
       JOIN global.peg_sanity_snapshots pss ON pss.token_id = pmt.id
       WHERE pmt.active = true
@@ -287,7 +289,7 @@ export class MonitoringRepository {
         oss.oracle_price,
         oss.offchain_price,
         oss.deviation_pct,
-        EXTRACT(EPOCH FROM (NOW() - oss.timestamp))::int AS age_seconds
+        oss.timestamp
       FROM global.oracle_sanity_snapshots oss
       JOIN global.usg_markets um ON um.id = oss.market_id
       WHERE um.is_active = true
