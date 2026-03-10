@@ -38,9 +38,9 @@ export const MODULE_CONFIG = {
     filters: ["market_address", "borrower_address", "status"],
     paginated: true,
     thresholds: {
-      warning_multiplier: envFloat("MONITORING_COLLAT_WARNING_MULT", 1.1),
-      danger_multiplier: envFloat("MONITORING_COLLAT_DANGER_MULT", 1.03),
-      critical_multiplier: envFloat("MONITORING_COLLAT_CRITICAL_MULT", 1.0),
+      warning_multiplier: envFloat("MONITORING_COLLAT_WARNING_MULT", 1.2),
+      danger_multiplier: envFloat("MONITORING_COLLAT_DANGER_MULT", 1.1),
+      critical_multiplier: envFloat("MONITORING_COLLAT_CRITICAL_MULT", 1.03),
     },
   },
   liquidation_distance: {
@@ -88,10 +88,10 @@ export const MODULE_CONFIG = {
     filters: ["market_address", "status"],
     paginated: false,
     thresholds: {
-      deviation_warning_pct: envFloat("MONITORING_ORACLE_DEV_WARNING_PCT", 1.0),
-      deviation_danger_pct: envFloat("MONITORING_ORACLE_DEV_DANGER_PCT", 3.0),
-      max_age_warning_seconds: envFloat("MONITORING_ORACLE_AGE_WARNING_S", 300),
-      max_age_danger_seconds: envFloat("MONITORING_ORACLE_AGE_DANGER_S", 600),
+      deviation_warning_pct: envFloat("MONITORING_ORACLE_DEV_WARNING_PCT", 2.0),
+      deviation_danger_pct: envFloat("MONITORING_ORACLE_DEV_DANGER_PCT", 5.0),
+      max_age_warning_seconds: envFloat("MONITORING_ORACLE_AGE_WARNING_S", 3600),
+      max_age_danger_seconds: envFloat("MONITORING_ORACLE_AGE_DANGER_S", 7200),
     },
   },
   debt_utilization: {
@@ -172,6 +172,7 @@ export interface PegItem {
   spot_price: number
   ref_price: number
   deviation_pct: number
+  timestamp: string
   status: "pegged" | "drift" | "danger" | "critical"
 }
 
