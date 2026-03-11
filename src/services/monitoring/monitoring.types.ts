@@ -149,6 +149,8 @@ export interface OverviewData {
 export interface CollateralizationItem {
   borrower_address: string
   market_name: string
+  collateral_value: number
+  debt: number
   liquidation_threshold: number
   cr: number
   margin: number
@@ -159,6 +161,8 @@ export interface CollateralizationItem {
 export interface LiquidationDistanceItem {
   borrower_address: string
   market_name: string
+  collateral_value: number
+  debt: number
   liquidation_price: number
   current_price: number
   distance_pct: number

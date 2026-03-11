@@ -155,6 +155,8 @@ export class MonitoringService {
       data: rows.map((r) => ({
         borrower_address: r.borrower_address,
         market_name: r.market_name,
+        collateral_value: r.collateral_value,
+        debt: r.debt,
         liquidation_threshold: r.liquidation_threshold,
         cr: r.cr,
         margin: r.margin,
@@ -180,6 +182,8 @@ export class MonitoringService {
       data: rows.map((r) => ({
         borrower_address: r.borrower_address,
         market_name: r.market_name,
+        collateral_value: r.collateral_value,
+        debt: r.debt,
         liquidation_price: r.liquidation_price,
         current_price: r.current_price,
         distance_pct: r.distance_pct,
