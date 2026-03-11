@@ -40,6 +40,8 @@ const collateralizationItem = {
   properties: {
     borrower_address: { type: "string" },
     market_name: { type: "string" },
+    collateral_value: { type: "number" },
+    debt: { type: "number" },
     liquidation_threshold: { type: "number" },
     cr: { type: "number" },
     margin: { type: "number" },
@@ -53,6 +55,8 @@ const liquidationDistanceItem = {
   properties: {
     borrower_address: { type: "string" },
     market_name: { type: "string" },
+    collateral_value: { type: "number" },
+    debt: { type: "number" },
     liquidation_price: { type: "number" },
     current_price: { type: "number" },
     distance_pct: { type: "number" },

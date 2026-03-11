@@ -9,6 +9,8 @@ interface OverviewRow {
 interface CollateralizationRow {
   borrower_address: string
   market_name: string
+  collateral_value: number
+  debt: number
   liquidation_threshold: number
   cr: number
   margin: number
@@ -20,6 +22,8 @@ interface CollateralizationRow {
 interface LiquidationDistanceRow {
   borrower_address: string
   market_name: string
+  collateral_value: number
+  debt: number
   liquidation_price: number
   current_price: number
   distance_pct: number
@@ -180,6 +184,8 @@ export class MonitoringRepository {
         SELECT
           lp.borrower_address,
           um.contract_name AS market_name,
+          lp.position_value_usd AS collateral_value,
+          lp.user_debt AS debt,
           mc.liquidation_threshold,
           lp.cr,
           lp.margin,
@@ -240,6 +246,8 @@ export class MonitoringRepository {
         SELECT
           lp.borrower_address,
           um.contract_name AS market_name,
+          lp.position_value_usd AS collateral_value,
+          lp.user_debt AS debt,
           lp.liquidation_price,
           lgd.oracle_price AS current_price,
           lp.distance_pct,
