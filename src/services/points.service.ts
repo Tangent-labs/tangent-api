@@ -1,5 +1,5 @@
-import { AddressLike } from "ethers"
 import { PointsRepository } from "../data/points.data.js"
+import { GodsonsLeaderboardItem, LeaderBoardPosition, LpUserPointsResult, UserTaskRow, UserVoteTaskRow } from "../types.js";
 
 export class PointsService {
   pointsRepository: PointsRepository
@@ -9,11 +9,7 @@ export class PointsService {
   }
 
   computeLeaderboard(
-    leaderboard: {
-      rank: number
-      address: AddressLike
-      pts: number
-    }[],
+    leaderboard: LeaderBoardPosition[],
     userAddress: string
   ) {
     const userIndex = leaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
@@ -28,72 +24,95 @@ export class PointsService {
     return [...top10, user]
   }
 
-  async fetchLpLeaderboard(userAddress: string) {
-    const lpLeaderboard = await this.pointsRepository.fetchLpLeaderboard()
-    const computedLeaderboard = this.computeLeaderboard(lpLeaderboard, userAddress)
-    return computedLeaderboard
-  }
+  async getLeaderBoards(userAddress: string) {
+    let lpLeaderboard: LeaderBoardPosition[] = []
+    let voteLeaderboard: LeaderBoardPosition[] = []
+    let godsonsLeaderboard: GodsonsLeaderboardItem[] = []
 
-  async fetchVoteLeaderboard(userAddress: string) {
-    const voteLeaderboard = await this.pointsRepository.fetchVoteLeaderboard()
-    const computedLeaderboard = this.computeLeaderboard(voteLeaderboard, userAddress)
-    return computedLeaderboard
-  }
-
-  async fetchGodsonsLeaderboard(userAddress: AddressLike) {
-    return await this.pointsRepository.fetchGodsonsLeaderboard(userAddress)
-  }
-
-  async getUserVoteTasks(userAddress: string) {
     try {
-      const result = await this.pointsRepository.getUserVoteTasks(userAddress)
-      return result
+      lpLeaderboard = this.computeLeaderboard(await this.pointsRepository.fetchLpLeaderboard(), userAddress)
     } catch (err) {
       console.log(err)
-      throw err
+    }
+    try {
+      voteLeaderboard = this.computeLeaderboard(await this.pointsRepository.fetchVoteLeaderboard(), userAddress)
+    } catch (err) {
+      console.log(err)
+    }
+    try {
+      godsonsLeaderboard = await this.pointsRepository.fetchGodsonsLeaderboard(userAddress)
+    } catch (err) {
+      console.log(err)
+    }
+
+    return {
+      lp: lpLeaderboard,
+      vote: voteLeaderboard,
+      godsons: godsonsLeaderboard
     }
   }
 
-  async getUserTasks(userAddress: string) {
+  async getTasks(userAddress: string) {
+    let lpTasks: UserTaskRow[] = []
+    let voteTasks: UserVoteTaskRow[] = []
     try {
-      const result = await this.pointsRepository.getUserTasks(userAddress)
-      return result
+      lpTasks = await this.pointsRepository.getUserTasks(userAddress)
     } catch (err) {
       console.log(err)
-      throw err
+    }
+    try {
+      voteTasks = await this.pointsRepository.getUserVoteTasks(userAddress)
+    } catch (err) {
+      console.log(err)
+    }
+
+    return {
+      lp: lpTasks,
+      vote: voteTasks
     }
   }
 
-  async getLpUserPoints(userAddress: string, dateFrom: string) {
-    try {
-      const result = await this.pointsRepository.getLpUserPoints(userAddress, dateFrom)
+  async getPointsDetails(userAddress: string, dateFrom: string) {
+    let lpPointsResult: LpUserPointsResult = { lpDailyRate: "", lpTotalPoints: "" }
+    let totalVotePoints = ""
+    let refereesPoints = { lp: "", vote: "" }
 
-      return result
+    try {
+      lpPointsResult = await this.pointsRepository.getLpUserPoints(userAddress, dateFrom)
     } catch (err) {
       console.log(err)
-      throw err
     }
-  }
 
-  async getVoteUserPoints(userAddress: string) {
     try {
-      const result = await this.pointsRepository.getVoteUserPoints(userAddress)
-
-      return result
+      totalVotePoints = await this.pointsRepository.getVoteUserPoints(userAddress)
     } catch (err) {
       console.log(err)
-      throw err
     }
-  }
 
-  async getUserRefereesPoints(userAddress: string) {
     try {
-      const result = await this.pointsRepository.getUserRefereesPoints(userAddress)
-
-      return result
+      refereesPoints = await this.pointsRepository.getUserRefereesPoints(userAddress)
     } catch (err) {
       console.log(err)
-      throw err
+    }
+
+    let boost = 1
+    try {
+      boost = await this.pointsRepository.getUserBoost(userAddress)
+    } catch (err) {
+      console.log(err)
+    }
+
+    return {
+      boost: boost,
+      lp: {
+        total: lpPointsResult.lpTotalPoints,
+        referees: refereesPoints.lp,
+        dailyRate: lpPointsResult.lpDailyRate
+      },
+      vote: {
+        total: totalVotePoints,
+        referees: refereesPoints.vote,
+      }
     }
   }
 
@@ -108,14 +127,5 @@ export class PointsService {
     }
   }
 
-  async getUserBoostMultiplicator(userAddress: string) {
-    try {
-      const result = await this.pointsRepository.getUserBoost(userAddress)
 
-      return result
-    } catch (err) {
-      console.log(err)
-      throw err
-    }
-  }
 }
