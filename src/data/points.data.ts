@@ -9,10 +9,7 @@ export class PointsRepository {
     this.prismaClient = prisma
   }
 
-  async getUserRefereesPoints(userAddress: string): Promise<{
-    lpPoints: bigint
-    votePoints: bigint
-  }> {
+  async getUserRefereesPoints(userAddress: string) {
     const address = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<Array<{ lp_points: bigint | null; vote_points: bigint | null }>>`
@@ -55,16 +52,10 @@ export class PointsRepository {
     CROSS JOIN vt
     CROSS JOIN referrals rt;
   `
-
-    const lpPoints = rows?.[0]?.lp_points ?? 0n
-    const votePoints = rows?.[0]?.vote_points ?? 0n
-
-    return { lpPoints, votePoints }
+    return { lp: (rows?.[0]?.lp_points ?? 0n).toString(), vote: (rows?.[0]?.vote_points ?? 0n).toString() }
   }
 
-  async getVoteUserPoints(userAddress: string): Promise<{
-    voteTotalPoints: bigint
-  }> {
+  async getVoteUserPoints(userAddress: string) {
     const addr = userAddress.toLowerCase()
 
     const computedPoints = await this.prismaClient.$queryRaw<UserPointsRow[]>`
@@ -89,16 +80,10 @@ export class PointsRepository {
       total_points: 0n,
     }
 
-    return { voteTotalPoints: totals?.total_points }
+    return totals?.total_points.toString()
   }
 
-  async getLpUserPoints(
-    userAddress: string,
-    now: string
-  ): Promise<{
-    lpTotalPoints: bigint
-    lpDailyRate: bigint
-  }> {
+  async getLpUserPoints(userAddress: string, now: string) {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`
@@ -164,8 +149,8 @@ export class PointsRepository {
     const dailyRate = rows[0]?.daily_rate ?? 0n
 
     return {
-      lpTotalPoints: totalPoints,
-      lpDailyRate: dailyRate,
+      lpTotalPoints: totalPoints.toString(),
+      lpDailyRate: dailyRate.toString(),
     }
   }
 

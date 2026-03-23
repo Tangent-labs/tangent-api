@@ -129,6 +129,12 @@ export type UserPointsRow = {
   daily_rate: bigint
 }
 
+export type LeaderBoardPosition = {
+  rank: number
+  address: AddressLike
+  pts: number
+}
+
 export type GodsonsLeaderboardItem = {
   rank: number
   address: AddressLike
@@ -152,4 +158,9 @@ export type SavingAccountsApy = {
   value: number
   key: string
   tokenAddress: string
+}
+
+export type LpUserPointsResult = {
+  lpTotalPoints: string
+  lpDailyRate: string
 }

@@ -32,7 +32,11 @@ import monitoringWsPlugin from "./plugins/monitoring-ws.js"
 
 dotenv.config()
 
-const fastify: FastifyInstance = Fastify({ logger: true })
+const fastify: FastifyInstance = Fastify({
+  logger: {
+    level: "error",
+  },
+})
 
 // Register plugins
 fastify.register(prismaPlugin)
@@ -43,7 +47,7 @@ fastify.register(rateLimit, {
   timeWindow: "1 minute", // per IP per time window
 })
 
-// 1️⃣ Generate OpenAPI spec
+// Generate OpenAPI spec
 fastify.register(swagger, {
   openapi: {
     info: {
@@ -61,7 +65,6 @@ fastify.register(swaggerUI, {
     docExpansion: "list", // optional UI settings
     deepLinking: true,
   },
-  // No 'exposeRoute', it's enabled by default
 })
 
 fastify.register(Postgres, {
