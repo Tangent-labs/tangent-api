@@ -1,9 +1,8 @@
 import { FastifyInstance } from "fastify"
-import { boostsPointsSchema, leaderboardsSchema, pointsDetailsSchema, tasksSchema, } from "../schemas/points.schema.js"
+import { leaderboardsSchema, pointsDetailsSchema, tasksSchema } from "../schemas/points.schema.js"
 import { UserTasks, UserPoints } from "../types.js"
 import { PointsService } from "../services/points.service.js"
 import { toError } from "../utils.js"
-
 
 export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts: { pointsService: PointsService }) {
   fastify.get<UserTasks>("/tasks/:userAddress", tasksSchema, async (request, reply) => {
@@ -40,17 +39,4 @@ export async function registerPointsProgramRoutes(fastify: FastifyInstance, opts
       return reply.status(errTyped.message.includes("Invalid") ? 400 : 500).send({ error: errTyped.message })
     }
   })
-
-  fastify.get<{ Params: { userAddress: string } }>("/boosts/:userAddress", boostsPointsSchema, async (request, reply) => {
-    try {
-      const { userAddress } = request.params
-      const result = await opts.pointsService.getUserBoosts(userAddress)
-      return reply.status(200).send(result)
-    } catch (err) {
-      fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch user boosts" })
-    }
-  })
-
-
 }

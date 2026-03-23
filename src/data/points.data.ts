@@ -83,10 +83,7 @@ export class PointsRepository {
     return totals?.total_points.toString()
   }
 
-  async getLpUserPoints(
-    userAddress: string,
-    now: string
-  ) {
+  async getLpUserPoints(userAddress: string, now: string) {
     const addr = userAddress.toLowerCase()
 
     const rows = await this.prismaClient.$queryRaw<{ total_points: bigint; daily_rate: bigint }[]>`

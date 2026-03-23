@@ -1,6 +1,5 @@
 import { RouteShorthandOptions } from "fastify"
 
-
 const taskItem = {
   type: "object",
   properties: {
@@ -17,7 +16,7 @@ const taskItem = {
     tokenAddress: { type: "string" },
     priceUSD: { type: "string" },
   },
-} as const;
+} as const
 
 export const tasksSchema: RouteShorthandOptions = {
   schema: {
@@ -62,7 +61,13 @@ export const pointsDetailsSchema: RouteShorthandOptions = {
       200: {
         type: "object",
         properties: {
-          boost: { type: "number" },
+          boost: {
+            type: "object",
+            properties: {
+              multiplicator: { type: "string" },
+              keys: { type: "array", items: { type: "string" } },
+            },
+          },
           lp: {
             type: "object",
             properties: {
@@ -96,11 +101,10 @@ const leaderboardItem = {
   properties: {
     rank: { type: "integer" },
     address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-    lpPoints: { type: "integer" },
-    votePts: { type: "integer" },
+    pts: { type: "integer" },
   },
-  required: ["rank", "address", "lpPoints", "votePts"],
-} as const;
+  required: ["rank", "address", "pts"],
+} as const
 
 const godsonsItem = {
   type: "object",
@@ -111,11 +115,12 @@ const godsonsItem = {
     pts: { type: "integer" },
   },
   required: ["rank", "address", "pts"],
-} as const; const errorResponse = {
+} as const
+const errorResponse = {
   type: "object",
   properties: { error: { type: "string" } },
   additionalProperties: false,
-} as const;
+} as const
 
 export const leaderboardsSchema: RouteShorthandOptions = {
   schema: {
@@ -144,32 +149,3 @@ export const leaderboardsSchema: RouteShorthandOptions = {
     },
   },
 }
-
-
-export const boostsPointsSchema: RouteShorthandOptions = {
-  schema: {
-    tags: ["Points program"],
-    params: {
-      type: "object",
-      required: ["userAddress"],
-      properties: {
-        userAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-      },
-    },
-    response: {
-      200: {
-        type: "array",
-        items: { type: "string" },
-      },
-      500: {
-        type: "object",
-        properties: {
-          error: { type: "string" },
-        },
-        required: ["error"],
-      },
-    },
-  },
-}
-
-

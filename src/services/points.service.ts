@@ -1,5 +1,5 @@
 import { PointsRepository } from "../data/points.data.js"
-import { GodsonsLeaderboardItem, LeaderBoardPosition, LpUserPointsResult, UserTaskRow, UserVoteTaskRow } from "../types.js";
+import { GodsonsLeaderboardItem, LeaderBoardPosition, LpUserPointsResult, UserTaskRow, UserVoteTaskRow } from "../types.js"
 
 export class PointsService {
   pointsRepository: PointsRepository
@@ -8,10 +8,7 @@ export class PointsService {
     this.pointsRepository = pointsRepository
   }
 
-  computeLeaderboard(
-    leaderboard: LeaderBoardPosition[],
-    userAddress: string
-  ) {
+  computeLeaderboard(leaderboard: LeaderBoardPosition[], userAddress: string) {
     const userIndex = leaderboard.findIndex((el) => el?.address?.toString()?.toLowerCase() === userAddress?.toLowerCase())
 
     if (userIndex === -1 || userIndex < 10) {
@@ -32,23 +29,24 @@ export class PointsService {
     try {
       lpLeaderboard = this.computeLeaderboard(await this.pointsRepository.fetchLpLeaderboard(), userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
     try {
       voteLeaderboard = this.computeLeaderboard(await this.pointsRepository.fetchVoteLeaderboard(), userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
+
     try {
       godsonsLeaderboard = await this.pointsRepository.fetchGodsonsLeaderboard(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
 
     return {
       lp: lpLeaderboard,
       vote: voteLeaderboard,
-      godsons: godsonsLeaderboard
+      godsons: godsonsLeaderboard,
     }
   }
 
@@ -58,17 +56,17 @@ export class PointsService {
     try {
       lpTasks = await this.pointsRepository.getUserTasks(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
     try {
       voteTasks = await this.pointsRepository.getUserVoteTasks(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
 
     return {
       lp: lpTasks,
-      vote: voteTasks
+      vote: voteTasks,
     }
   }
 
@@ -80,39 +78,49 @@ export class PointsService {
     try {
       lpPointsResult = await this.pointsRepository.getLpUserPoints(userAddress, dateFrom)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
 
     try {
       totalVotePoints = await this.pointsRepository.getVoteUserPoints(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
 
     try {
       refereesPoints = await this.pointsRepository.getUserRefereesPoints(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
 
     let boost = 1
     try {
       boost = await this.pointsRepository.getUserBoost(userAddress)
     } catch (err) {
-      console.log(err)
+      console.error(err)
+    }
+
+    let boosts: string[] = []
+    try {
+      boosts = await this.pointsRepository.getUserBoosts(userAddress)
+    } catch (err) {
+      console.error(err)
     }
 
     return {
-      boost: boost,
+      boost: {
+        multiplicator: boost,
+        keys: boosts,
+      },
       lp: {
         total: lpPointsResult.lpTotalPoints,
         referees: refereesPoints.lp,
-        dailyRate: lpPointsResult.lpDailyRate
+        dailyRate: lpPointsResult.lpDailyRate,
       },
       vote: {
         total: totalVotePoints,
         referees: refereesPoints.vote,
-      }
+      },
     }
   }
 
@@ -122,10 +130,8 @@ export class PointsService {
 
       return result
     } catch (err) {
-      console.log(err)
+      console.error(err)
       throw err
     }
   }
-
-
 }
