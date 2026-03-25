@@ -48,7 +48,7 @@ export class PredepositRepository {
     return await this.prismaClient.predeposit_users.findFirst({
       where: {
         user_address: {
-          equals: userAddress,
+          equals: userAddress?.toLowerCase(),
         },
       },
     })
