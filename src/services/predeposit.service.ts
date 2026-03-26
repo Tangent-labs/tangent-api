@@ -55,7 +55,8 @@ export class PredepositService {
         lpData.push({ accumulatedBalance: "0", accumulatedTotal: total.total_lp, cap: total.cap_lp, lpName: lp, otherStable: otherStablesInfo(lp) })
       })
     } else {
-      const accountedBalances = await this.predepositRepository.getAccountedBalances(userAddress)
+      const accountedBalances = await this.predepositRepository.getAccountedBalances(userAddress?.toString()?.toLowerCase())
+
       lpNames.forEach((lp) => {
         const total = accountedTotals.find((acc) => acc.usg_lp.lp_name === lp)!
         const balance = accountedBalances.find((accBal) => accBal.usg_lp.lp_name === lp)?.balance_lp

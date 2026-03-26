@@ -22,7 +22,7 @@ export class PredepositRepository {
     })
   }
 
-  async getAccountedBalances(userAddress: AddressLike) {
+  async getAccountedBalances(userAddress: string) {
     return await this.prismaClient.accounted_balances.findMany({
       select: {
         balance_lp: true,
@@ -34,7 +34,7 @@ export class PredepositRepository {
       },
       where: {
         user_address: {
-          equals: userAddress.toString(),
+          equals: userAddress,
         },
       },
     })
