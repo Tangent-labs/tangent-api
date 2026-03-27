@@ -1,4 +1,4 @@
-import { AddressLike } from "ethers"
+import { AddressLike, isAddress } from "ethers"
 import { ProtocolMetricsRepository } from "../data/protocol_metrics.data.js"
 import { RawEvent, TransformedEvent } from "../types.js"
 
@@ -42,6 +42,10 @@ export class ProtocolMetricsService {
   }
 
   async getOraclePriceBuckets(market: AddressLike, dateEnd: string | undefined, bucketCount: number, bucketSizeMinutes: number) {
+    if (!isAddress(String(market))) {
+      throw new Error("Invalid market address")
+    }
+
     if (!Number.isFinite(bucketCount) || bucketCount <= 0) {
       throw new Error("Invalid oracle graph bucket count")
     }
@@ -62,6 +66,10 @@ export class ProtocolMetricsService {
     // higher-level graph controls instead: number of buckets + bucket size in minutes.
     const endDate = this.alignDateToBucket(rawEndDate, bucketSizeMinutes)
     const startDate = new Date(endDate.getTime() - bucketCount * bucketSizeMinutes * 60_000)
+
+    if (startDate.getTime() >= endDate.getTime()) {
+      return []
+    }
 
     return await this.protocolMetricsRepo.getOraclePriceBuckets(market, startDate.toISOString(), endDate.toISOString(), bucketCount)
   }

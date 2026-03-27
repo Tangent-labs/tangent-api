@@ -1,8 +1,8 @@
 /**
  * Backfill mock oracle price history for a single market in global.market_global_data.
  *
- * The script inserts one point per hour for the requested window when a row does not
- * already exist at that timestamp, and updates oracle_price when a row already exists.
+ * The script deletes existing rows in the window, then inserts fresh data points
+ * with oracle prices between PRICE_MIN and PRICE_MAX.
  *
  * Usage:
  *   npm run mock:oracle-history
@@ -11,6 +11,11 @@ import dotenv from "dotenv"
 import { PrismaClient } from "@prisma/client"
 
 dotenv.config()
+
+if (process.env.NODE_ENV === "production") {
+  console.error("This mock script must NOT be run in production.")
+  process.exit(1)
+}
 
 const prisma = new PrismaClient()
 
@@ -41,21 +46,17 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-function gaussian(x: number, center: number, width: number): number {
-  const scaled = (x - center) / width
-  return Math.exp(-(scaled * scaled))
-}
+const PRICE_MIN = 1.015
+const PRICE_MAX = 1.016
+const PRICE_MID = (PRICE_MIN + PRICE_MAX) / 2
+const PRICE_HALF_RANGE = (PRICE_MAX - PRICE_MIN) / 2
 
-function buildOraclePrice(basePrice: number, progress: number, hourIndex: number): number {
-  const trend = basePrice * 0.008 * (progress - 0.5)
-  const weeklyWave = basePrice * 0.0022 * Math.sin(progress * Math.PI * 5.5)
-  const dailyWave = basePrice * 0.0011 * Math.sin(progress * Math.PI * 60)
-  const shortWave = basePrice * 0.00045 * Math.cos(progress * Math.PI * 190)
-  const drawdown = -basePrice * 0.014 * gaussian(progress, 0.58, 0.035)
-  const rebound = basePrice * 0.0065 * gaussian(progress, 0.74, 0.05)
-  const noise = basePrice * deterministicNoise(hourIndex + 1) * 0.00085
+function buildOraclePrice(progress: number, hourIndex: number): number {
+  const trend = PRICE_HALF_RANGE * 0.3 * Math.sin(progress * Math.PI * 2)
+  const wave = PRICE_HALF_RANGE * 0.4 * Math.sin(progress * Math.PI * 14)
+  const noise = PRICE_HALF_RANGE * deterministicNoise(hourIndex + 1) * 0.6
 
-  return clamp(basePrice + trend + weeklyWave + dailyWave + shortWave + drawdown + rebound + noise, 0.5, basePrice * 1.35)
+  return clamp(PRICE_MID + trend + wave + noise, PRICE_MIN, PRICE_MAX)
 }
 
 function buildTimestamps(start: Date, end: Date, stepMinutes: number): Date[] {
@@ -126,42 +127,28 @@ async function main() {
 
   const timestamps = buildTimestamps(start, end, stepMinutes)
 
-  const existingRows = await prisma.$queryRaw<{ id: bigint; timestamp: Date }[]>`
-    SELECT id, timestamp
-    FROM global.market_global_data
+  // Clean up previously injected rows in the window
+  const deleted = await prisma.$executeRaw`
+    DELETE FROM global.market_global_data
     WHERE market_id = ${market.id}
       AND (timestamp AT TIME ZONE 'UTC') >= ${start.toISOString()}::timestamptz
       AND (timestamp AT TIME ZONE 'UTC') <= ${end.toISOString()}::timestamptz
-    ORDER BY timestamp ASC, id ASC
   `
 
-  const existingByTimestamp = new Map(existingRows.map((row) => [row.timestamp.toISOString(), row.id]))
   const totalPoints = Math.max(timestamps.length - 1, 1)
-  const basePrice = Number(reference.oracle_price || 1.01)
 
   let inserted = 0
-  let updated = 0
 
   console.log(`Backfilling mock oracle history for ${market.contract_name} (${marketAddress})`)
   console.log(`Window: ${start.toISOString()} -> ${end.toISOString()}`)
+  console.log(`Deleted ${deleted} existing rows`)
   console.log(`Cadence: every ${stepMinutes}m`)
-  console.log(`Reference base price: ${basePrice.toFixed(6)}`)
+  console.log(`Price range: ${PRICE_MIN} - ${PRICE_MAX}`)
 
   for (let i = 0; i < timestamps.length; i++) {
     const ts = timestamps[i]
     const progress = i / totalPoints
-    const oraclePrice = buildOraclePrice(basePrice, progress, i)
-    const existingId = existingByTimestamp.get(ts.toISOString())
-
-    if (existingId) {
-      await prisma.$executeRaw`
-        UPDATE global.market_global_data
-        SET oracle_price = ${oraclePrice}
-        WHERE id = ${existingId}
-      `
-      updated++
-      continue
-    }
+    const oraclePrice = buildOraclePrice(progress, i)
 
     const tvlDrift = 1 + 0.025 * Math.sin(progress * Math.PI * 3.2) + deterministicNoise(i + 11) * 0.01
     const debtDrift = 1 + 0.02 * Math.cos(progress * Math.PI * 2.3) + deterministicNoise(i + 29) * 0.008
@@ -217,7 +204,6 @@ async function main() {
     `
   }
 
-  console.log(`Rows updated: ${updated}`)
   console.log(`Rows inserted: ${inserted}`)
   console.log("Updated global.latest_global_data.oracle_price")
 }

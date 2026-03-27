@@ -202,8 +202,8 @@ export const getOracleMarketDataSchema: RouteShorthandOptions = {
       required: ["bucketCount", "bucketSizeMinutes"],
       properties: {
         dateEnd: { type: "string", format: "date-time" },
-        bucketCount: { type: "integer", minimum: 1 },
-        bucketSizeMinutes: { type: "integer", minimum: 1 },
+        bucketCount: { type: "integer", minimum: 1, maximum: 200 },
+        bucketSizeMinutes: { type: "integer", minimum: 1, maximum: 10080 },
       },
     },
     response: {
@@ -212,14 +212,10 @@ export const getOracleMarketDataSchema: RouteShorthandOptions = {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["ts", "open", "high", "low", "close", "sample_count"],
+          required: ["ts", "price"],
           properties: {
-            ts: { type: "integer" },
-            open: { type: ["number", "null"] },
-            high: { type: ["number", "null"] },
-            low: { type: ["number", "null"] },
-            close: { type: ["number", "null"] },
-            sample_count: { type: "integer" },
+            ts: { type: "number" },
+            price: { type: ["number", "null"] },
           },
         },
       },

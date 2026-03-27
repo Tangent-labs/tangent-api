@@ -4,13 +4,9 @@ import { AddressLike, isAddress } from "ethers"
 import { rangeToMinDate } from "../utils.js"
 
 export type TokenPoint = { timestamp: Date; amount: string }
-export type OraclePriceBucketRow = {
-  ts: bigint | number
-  open: number | null
-  high: number | null
-  low: number | null
-  close: number | null
-  sample_count: number
+export type OraclePricePoint = {
+  ts: number
+  price: number | null
 }
 
 export class ProtocolMetricsRepository {
@@ -116,8 +112,8 @@ export class ProtocolMetricsRepository {
     return chartData
   }
 
-  async getOraclePriceBuckets(marketAddress: AddressLike, startISO: string, endISO: string, bucketCount: number = 200): Promise<OraclePriceBucketRow[]> {
-    return await this.prismaClient.$queryRaw<OraclePriceBucketRow[]>`
+  async getOraclePriceBuckets(marketAddress: AddressLike, startISO: string, endISO: string, bucketCount: number): Promise<OraclePricePoint[]> {
+    return await this.prismaClient.$queryRaw<OraclePricePoint[]>`
       WITH params AS (
         SELECT
           LOWER(${String(marketAddress)}) AS market_address,
@@ -180,22 +176,14 @@ export class ProtocolMetricsRepository {
         SELECT
           bucket_idx,
           bucket_start,
-          bucket_end,
-          id,
-          ts,
           price,
-          ROW_NUMBER() OVER (PARTITION BY bucket_idx ORDER BY ts ASC, id ASC) AS rn_asc,
-          ROW_NUMBER() OVER (PARTITION BY bucket_idx ORDER BY ts DESC, id DESC) AS rn_desc
+          ROW_NUMBER() OVER (PARTITION BY bucket_idx ORDER BY ts DESC, id DESC) AS rn
         FROM bucketed
         WHERE ts IS NOT NULL
       )
       SELECT
-        FLOOR(EXTRACT(EPOCH FROM b.bucket_start) * 1000)::bigint AS ts,
-        MAX(CASE WHEN r.rn_asc = 1 THEN r.price END)::float8 AS open,
-        MAX(r.price)::float8 AS high,
-        MIN(r.price)::float8 AS low,
-        MAX(CASE WHEN r.rn_desc = 1 THEN r.price END)::float8 AS close,
-        COUNT(r.ts)::int AS sample_count
+        FLOOR(EXTRACT(EPOCH FROM b.bucket_start) * 1000)::float8 AS ts,
+        MAX(CASE WHEN r.rn = 1 THEN r.price END)::float8 AS price
       FROM buckets b
       LEFT JOIN ranked r
         ON r.bucket_idx = b.bucket_idx
