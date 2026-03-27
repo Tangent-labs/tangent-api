@@ -185,6 +185,50 @@ export const getMarketHistoricalMarketDataSchema: RouteShorthandOptions = {
   },
 }
 
+export const getOracleMarketDataSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    params: {
+      type: "object",
+      additionalProperties: false,
+      required: ["marketAddress"],
+      properties: {
+        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+      },
+    },
+    querystring: {
+      type: "object",
+      additionalProperties: false,
+      required: ["bucketCount", "bucketSizeMinutes"],
+      properties: {
+        dateEnd: { type: "string", format: "date-time" },
+        bucketCount: { type: "integer", minimum: 1, maximum: 200 },
+        bucketSizeMinutes: { type: "integer", minimum: 1, maximum: 10080 },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["ts", "price"],
+          properties: {
+            ts: { type: "number" },
+            price: { type: ["number", "null"] },
+          },
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const eventsSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],
