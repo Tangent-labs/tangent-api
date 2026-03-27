@@ -4,6 +4,14 @@ import { AddressLike, isAddress } from "ethers"
 import { rangeToMinDate } from "../utils.js"
 
 export type TokenPoint = { timestamp: Date; amount: string }
+export type OraclePriceBucketRow = {
+  ts: bigint | number
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  sample_count: number
+}
 
 export class ProtocolMetricsRepository {
   prismaClient: PrismaClient
@@ -106,6 +114,94 @@ export class ProtocolMetricsRepository {
   `
 
     return chartData
+  }
+
+  async getOraclePriceBuckets(marketAddress: AddressLike, startISO: string, endISO: string, bucketCount: number = 200): Promise<OraclePriceBucketRow[]> {
+    return await this.prismaClient.$queryRaw<OraclePriceBucketRow[]>`
+      WITH params AS (
+        SELECT
+          LOWER(${String(marketAddress)}) AS market_address,
+          ${startISO}::timestamptz AS start_ts,
+          ${endISO}::timestamptz AS end_ts,
+          ${bucketCount}::int AS bucket_count
+      ),
+      bounds AS (
+        SELECT
+          market_address,
+          start_ts,
+          end_ts,
+          bucket_count,
+          ((end_ts - start_ts) / bucket_count) AS bucket_width
+        FROM params
+      ),
+      buckets AS (
+        SELECT
+          gs AS bucket_idx,
+          b.start_ts + (gs * b.bucket_width) AS bucket_start,
+          CASE
+            WHEN gs = b.bucket_count - 1 THEN b.end_ts
+            ELSE b.start_ts + ((gs + 1) * b.bucket_width)
+          END AS bucket_end
+        FROM bounds b
+        CROSS JOIN generate_series(0, (SELECT bucket_count - 1 FROM bounds)) gs
+      ),
+      filtered AS (
+        SELECT
+          mgd.id,
+          (mgd.timestamp AT TIME ZONE 'UTC') AS ts,
+          mgd.oracle_price::numeric AS price
+        FROM global.market_global_data mgd
+        JOIN global.usg_markets um
+          ON um.id = mgd.market_id
+        JOIN bounds b
+          ON TRUE
+        WHERE LOWER(um.contract_address) = b.market_address
+          AND (mgd.timestamp AT TIME ZONE 'UTC') >= b.start_ts
+          AND (mgd.timestamp AT TIME ZONE 'UTC') <= b.end_ts
+          AND mgd.oracle_price IS NOT NULL
+      ),
+      bucketed AS (
+        SELECT
+          b.bucket_idx,
+          b.bucket_start,
+          b.bucket_end,
+          f.id,
+          f.ts,
+          f.price
+        FROM buckets b
+        LEFT JOIN filtered f
+          ON f.ts >= b.bucket_start
+        AND (
+          f.ts < b.bucket_end
+          OR (f.ts = b.bucket_end AND b.bucket_idx = (SELECT bucket_count - 1 FROM bounds))
+        )
+      ),
+      ranked AS (
+        SELECT
+          bucket_idx,
+          bucket_start,
+          bucket_end,
+          id,
+          ts,
+          price,
+          ROW_NUMBER() OVER (PARTITION BY bucket_idx ORDER BY ts ASC, id ASC) AS rn_asc,
+          ROW_NUMBER() OVER (PARTITION BY bucket_idx ORDER BY ts DESC, id DESC) AS rn_desc
+        FROM bucketed
+        WHERE ts IS NOT NULL
+      )
+      SELECT
+        FLOOR(EXTRACT(EPOCH FROM b.bucket_start) * 1000)::bigint AS ts,
+        MAX(CASE WHEN r.rn_asc = 1 THEN r.price END)::float8 AS open,
+        MAX(r.price)::float8 AS high,
+        MIN(r.price)::float8 AS low,
+        MAX(CASE WHEN r.rn_desc = 1 THEN r.price END)::float8 AS close,
+        COUNT(r.ts)::int AS sample_count
+      FROM buckets b
+      LEFT JOIN ranked r
+        ON r.bucket_idx = b.bucket_idx
+      GROUP BY b.bucket_idx, b.bucket_start
+      ORDER BY b.bucket_idx ASC;
+    `
   }
 
   async getTotalValueLocked(

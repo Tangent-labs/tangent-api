@@ -26,6 +26,15 @@ export interface GetHistoricalMarketDataRoute {
   Querystring: { range?: string }
 }
 
+export interface GetOracleMarketDataRoute {
+  Params: { marketAddress: string }
+  Querystring: {
+    dateEnd?: string
+    bucketCount: number
+    bucketSizeMinutes: number
+  }
+}
+
 export interface UserTasks {
   Params: {
     userAddress: string

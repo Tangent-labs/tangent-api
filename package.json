@@ -13,6 +13,7 @@
     "dev": "tsx src/index.ts",
     "tangent:feed-codes": "tsx scripts/feed_referral_codes.ts",
     "tangent:feed-total-supply": "tsx src/scripts/feed_total_supply.ts",
+    "mock:oracle-history": "tsx src/scripts/mock-oracle-price-history.ts",
     "prisma:generate": "prisma generate --schema node_modules/@tangent/prisma-schema-shared/schema.prisma",
     "prisma:push": "prisma db push --schema node_modules/@tangent/prisma-schema-shared/schema.prisma",
     "test": "vitest run"

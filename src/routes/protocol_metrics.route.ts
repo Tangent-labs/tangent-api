@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest } from "fastify"
 
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
-import { EventsRoute, GetHistoricalMarketDataRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
+import { EventsRoute, GetHistoricalMarketDataRoute, GetOracleMarketDataRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
 
 import {
   totalSupplySchema,
@@ -11,6 +11,7 @@ import {
   susgHistoricalDataSchema,
   eventsSchema,
   getMarketHistoricalMarketDataSchema,
+  getOracleMarketDataSchema,
   tvlSchema,
 } from "../schemas/protocol_metrics.schema.js"
 
@@ -110,6 +111,18 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch events" })
+    }
+  })
+
+  fastify.get<GetOracleMarketDataRoute>("/oracle/:marketAddress", getOracleMarketDataSchema, async (request, reply) => {
+    try {
+      const { marketAddress } = request.params
+      const { dateEnd, bucketCount, bucketSizeMinutes } = request.query
+      const result = await opts.protocolMetricsService.getOraclePriceBuckets(marketAddress, dateEnd, bucketCount, bucketSizeMinutes)
+      return reply.status(200).send(result)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch oracle prices" })
     }
   })
 }
