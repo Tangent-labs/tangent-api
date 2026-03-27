@@ -116,7 +116,7 @@ export class ProtocolMetricsRepository {
     return await this.prismaClient.$queryRaw<OraclePricePoint[]>`
       WITH params AS (
         SELECT
-          LOWER(${String(marketAddress)}) AS market_address,
+          ${String(marketAddress).toLowerCase()} AS market_address,
           ${startISO}::timestamptz AS start_ts,
           ${endISO}::timestamptz AS end_ts,
           ${bucketCount}::int AS bucket_count
@@ -127,6 +127,8 @@ export class ProtocolMetricsRepository {
           start_ts,
           end_ts,
           bucket_count,
+          start_ts AT TIME ZONE 'UTC' AS start_ts_utc,
+          end_ts AT TIME ZONE 'UTC' AS end_ts_utc,
           ((end_ts - start_ts) / bucket_count) AS bucket_width
         FROM params
       ),
@@ -151,9 +153,9 @@ export class ProtocolMetricsRepository {
           ON um.id = mgd.market_id
         JOIN bounds b
           ON TRUE
-        WHERE LOWER(um.contract_address) = b.market_address
-          AND (mgd.timestamp AT TIME ZONE 'UTC') >= b.start_ts
-          AND (mgd.timestamp AT TIME ZONE 'UTC') <= b.end_ts
+        WHERE um.contract_address = b.market_address
+          AND mgd.timestamp >= b.start_ts_utc
+          AND mgd.timestamp <= b.end_ts_utc
           AND mgd.oracle_price IS NOT NULL
       ),
       bucketed AS (
