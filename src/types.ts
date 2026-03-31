@@ -127,6 +127,7 @@ export type UserTaskRow = {
   pointRate: number
   status: boolean
   points: bigint
+  canZap: boolean
   priceUSD?: number
   tokenAddress?: string
 }

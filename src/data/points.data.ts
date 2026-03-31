@@ -233,6 +233,7 @@ export class PointsRepository {
     t.protocol            AS "protocol",
     t.url                 AS "url",
     t.description         AS "description",
+    t.can_zap             AS "canZap",
     t.point_rate          AS "pointRate",
     t.token_address       AS "tokenAddress",
     lpf.price_usd         AS "priceUSD",
@@ -269,6 +270,7 @@ export class PointsRepository {
         pointRate: pointRate,
         status: status,
         points: totalDebtPoints,
+        canZap: false,
       },
       ...rows.filter((r) => !r.description.includes("debt on")),
     ]
