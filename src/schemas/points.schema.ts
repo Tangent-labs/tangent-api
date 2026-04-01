@@ -12,6 +12,7 @@ const taskItem = {
     pointRate: { type: "number" },
     lastVotingPower: { type: "number" },
     status: { type: "boolean" },
+    canZap: { type: "boolean" },
     points: { type: "number" },
     tokenAddress: { type: "string" },
     priceUSD: { type: "string" },
