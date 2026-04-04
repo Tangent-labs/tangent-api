@@ -111,8 +111,10 @@ fastify.register(async (f) => {
 // Graceful shutdown
 const start = async () => {
   try {
-    await fastify.listen({ port: 3100, host: "0.0.0.0" })
-    fastify.log.info(`Server listening on http://127.0.0.1:3100`)
+    const port = 3100
+    const host = "0.0.0.0"
+    await fastify.listen({ port, host })
+    fastify.log.info(`Server listening on http://${host}:${port}`)
   } catch (err) {
     fastify.log.error(err)
     process.exit(1)

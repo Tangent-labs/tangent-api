@@ -4,9 +4,11 @@ import { RawEvent, TransformedEvent } from "../types.js"
 
 export class ProtocolMetricsService {
   protocolMetricsRepo: ProtocolMetricsRepository
+  private rpcUrl: string
 
   constructor(protocolMetricsRepo: ProtocolMetricsRepository) {
     this.protocolMetricsRepo = protocolMetricsRepo
+    this.rpcUrl = process.env.RPC_URL || ""
   }
 
   transformEvents(rawEvents: RawEvent[]): TransformedEvent[] {
@@ -28,6 +30,32 @@ export class ProtocolMetricsService {
     const bucketMs = bucketSizeMinutes * 60_000
     aligned.setTime(Math.floor(aligned.getTime() / bucketMs) * bucketMs)
     return aligned
+  }
+
+  private async getBlockchainNow(): Promise<Date> {
+    if (!this.rpcUrl) {
+      return new Date()
+    }
+
+    try {
+      const signal = AbortSignal.timeout(5000)
+      const response = await fetch(this.rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getBlockByNumber", params: ["latest", false], id: 1 }),
+        signal,
+      })
+      const blockJson = (await response.json()) as { result?: { timestamp?: string } }
+      const blockTimestampHex = blockJson.result?.timestamp
+
+      if (!blockTimestampHex) {
+        return new Date()
+      }
+
+      return new Date(parseInt(blockTimestampHex, 16) * 1000)
+    } catch {
+      return new Date()
+    }
   }
 
   async getMarketHistoricalData(market: AddressLike, dateFrom: string, range: string) {
@@ -54,9 +82,10 @@ export class ProtocolMetricsService {
       throw new Error("Invalid oracle graph bucket size")
     }
 
-    // dateEnd is optional from the API. When absent, use "now" and snap it to the
-    // nearest lower bucket boundary before deriving the historical window.
-    const rawEndDate = dateEnd ? new Date(dateEnd) : new Date()
+    // dateEnd is optional from the API. When absent, use the latest blockchain
+    // timestamp and snap it to the nearest lower bucket boundary before deriving
+    // the historical window.
+    const rawEndDate = dateEnd ? new Date(dateEnd) : await this.getBlockchainNow()
 
     if (Number.isNaN(rawEndDate.getTime())) {
       throw new Error("Invalid oracle graph end date")
