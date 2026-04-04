@@ -275,7 +275,11 @@ export class MonitoringRepository {
 
   async getPegRows(): Promise<PegRow[]> {
     return await this.prismaClient.$queryRaw<PegRow[]>`
-      SELECT DISTINCT ON (pmt.id)
+      WITH ts_now AS (
+        SELECT MAX(timestamp) AS ts_now
+        FROM global.peg_sanity_snapshots
+      )
+      SELECT
         pmt.symbol,
         pmt.peg_type,
         pss.price,
@@ -284,14 +288,19 @@ export class MonitoringRepository {
         pss.timestamp
       FROM global.peg_monitored_tokens pmt
       JOIN global.peg_sanity_snapshots pss ON pss.token_id = pmt.id
+      CROSS JOIN ts_now t
       WHERE pmt.active = true
-      ORDER BY pmt.id, pss.timestamp DESC
+        AND pss.timestamp = t.ts_now
     `
   }
 
   async getOracleSanityRows(): Promise<OracleSanityRow[]> {
     return await this.prismaClient.$queryRaw<OracleSanityRow[]>`
-      SELECT DISTINCT ON (oss.market_id)
+      WITH ts_now AS (
+        SELECT MAX(timestamp) AS ts_now
+        FROM global.oracle_sanity_snapshots
+      )
+      SELECT
         um.contract_address AS market_address,
         um.contract_name AS market_name,
         oss.oracle_price,
@@ -300,8 +309,9 @@ export class MonitoringRepository {
         oss.timestamp
       FROM global.oracle_sanity_snapshots oss
       JOIN global.usg_markets um ON um.id = oss.market_id
+      CROSS JOIN ts_now t
       WHERE um.is_active = true
-      ORDER BY oss.market_id, oss.timestamp DESC
+        AND oss.timestamp = t.ts_now
     `
   }
 
@@ -325,118 +335,92 @@ export class MonitoringRepository {
 
   async getTvlVariationRows(): Promise<TvlVariationRow[]> {
     return await this.prismaClient.$queryRaw<TvlVariationRow[]>`
-      WITH current_data AS (
-        SELECT lgd.market_id, lgd.tvl_usd AS tvl_current, um.contract_name AS market_name, um.contract_address AS market_address
-        FROM global.latest_global_data lgd
-        JOIN global.usg_markets um ON um.id = lgd.market_id
-        WHERE um.is_active = true
+      WITH ts_now AS (
+        SELECT MAX(timestamp) AS t
+        FROM global.market_global_data
       ),
-      hist_1h AS (
-        SELECT DISTINCT ON (mgd.market_id)
-          mgd.market_id, mgd.tvl_usd
-        FROM global.market_global_data mgd
-        WHERE mgd.timestamp <= NOW() - INTERVAL '1 hour'
-        ORDER BY mgd.market_id, mgd.timestamp DESC
+      nearest_ts AS (
+        SELECT
+          t AS ts_now,
+          (SELECT MAX(timestamp) FROM global.market_global_data WHERE timestamp <= t - INTERVAL '1 hour') AS ts_1h,
+          (SELECT MAX(timestamp) FROM global.market_global_data WHERE timestamp <= t - INTERVAL '24 hours') AS ts_24h
+        FROM ts_now
       ),
-      hist_24h AS (
-        SELECT DISTINCT ON (mgd.market_id)
-          mgd.market_id, mgd.tvl_usd
-        FROM global.market_global_data mgd
-        WHERE mgd.timestamp <= NOW() - INTERVAL '24 hours'
-        ORDER BY mgd.market_id, mgd.timestamp DESC
+      snapshots_filtered AS (
+        SELECT market_id, tvl_usd, timestamp
+        FROM global.market_global_data
+        WHERE timestamp IN (
+          SELECT ts_now FROM nearest_ts
+          UNION
+          SELECT ts_1h FROM nearest_ts
+          UNION
+          SELECT ts_24h FROM nearest_ts
+        )
       )
       SELECT
-        cd.market_address,
-        cd.market_name,
-        cd.tvl_current,
-        CASE WHEN h1.tvl_usd > 0
-          THEN ((cd.tvl_current - h1.tvl_usd) / h1.tvl_usd * 100)
-          ELSE 0
-        END AS delta_1h_pct,
-        CASE WHEN h24.tvl_usd > 0
-          THEN ((cd.tvl_current - h24.tvl_usd) / h24.tvl_usd * 100)
-          ELSE 0
-        END AS delta_24h_pct
-      FROM current_data cd
-      LEFT JOIN hist_1h h1 ON h1.market_id = cd.market_id
-      LEFT JOIN hist_24h h24 ON h24.market_id = cd.market_id
+        um.contract_address AS market_address,
+        um.contract_name AS market_name,
+        s_now.tvl_usd AS tvl_current,
+        COALESCE((s_now.tvl_usd - s1.tvl_usd) / NULLIF(s1.tvl_usd, 0) * 100, 0) AS delta_1h_pct,
+        COALESCE((s_now.tvl_usd - s24.tvl_usd) / NULLIF(s24.tvl_usd, 0) * 100, 0) AS delta_24h_pct
+      FROM global.usg_markets um
+      CROSS JOIN nearest_ts nts
+      JOIN snapshots_filtered s_now ON s_now.market_id = um.id AND s_now.timestamp = nts.ts_now
+      LEFT JOIN snapshots_filtered s1 ON s1.market_id = um.id AND s1.timestamp = nts.ts_1h
+      LEFT JOIN snapshots_filtered s24 ON s24.market_id = um.id AND s24.timestamp = nts.ts_24h
+      WHERE um.is_active = true
     `
   }
 
   async getPriceVariationRows(): Promise<PriceVariationRow[]> {
     return await this.prismaClient.$queryRaw<PriceVariationRow[]>`
-      WITH latest_oracle AS (
-        SELECT DISTINCT ON (oss.market_id)
-          oss.market_id,
-          um.contract_name AS asset,
-          um.contract_address AS market_address,
-          oss.oracle_price AS price_now,
-          oss.timestamp AS ts_now
-        FROM global.oracle_sanity_snapshots oss
-        JOIN global.usg_markets um ON um.id = oss.market_id
-        WHERE um.is_active = true
-        ORDER BY oss.market_id, oss.timestamp DESC
+      WITH ts_now AS (
+        SELECT MAX(timestamp) AS t
+        FROM global.oracle_sanity_snapshots
       ),
-      hist_5m AS (
-        SELECT DISTINCT ON (oss.market_id)
-          oss.market_id, oss.oracle_price
-        FROM global.oracle_sanity_snapshots oss
-        JOIN latest_oracle lo ON lo.market_id = oss.market_id
-        WHERE oss.timestamp <= lo.ts_now - INTERVAL '5 minutes'
-        ORDER BY oss.market_id, oss.timestamp DESC
+      nearest_ts AS (
+        SELECT
+          t AS ts_now,
+          (SELECT MAX(timestamp) FROM global.oracle_sanity_snapshots WHERE timestamp <= t - INTERVAL '5 minutes') AS ts_5m,
+          (SELECT MAX(timestamp) FROM global.oracle_sanity_snapshots WHERE timestamp <= t - INTERVAL '15 minutes') AS ts_15m,
+          (SELECT MAX(timestamp) FROM global.oracle_sanity_snapshots WHERE timestamp <= t - INTERVAL '1 hour') AS ts_1h,
+          (SELECT MAX(timestamp) FROM global.oracle_sanity_snapshots WHERE timestamp <= t - INTERVAL '4 hours') AS ts_4h
+        FROM ts_now
       ),
-      hist_15m AS (
-        SELECT DISTINCT ON (oss.market_id)
-          oss.market_id, oss.oracle_price
-        FROM global.oracle_sanity_snapshots oss
-        JOIN latest_oracle lo ON lo.market_id = oss.market_id
-        WHERE oss.timestamp <= lo.ts_now - INTERVAL '15 minutes'
-        ORDER BY oss.market_id, oss.timestamp DESC
-      ),
-      hist_1h AS (
-        SELECT DISTINCT ON (oss.market_id)
-          oss.market_id, oss.oracle_price
-        FROM global.oracle_sanity_snapshots oss
-        JOIN latest_oracle lo ON lo.market_id = oss.market_id
-        WHERE oss.timestamp <= lo.ts_now - INTERVAL '1 hour'
-        ORDER BY oss.market_id, oss.timestamp DESC
-      ),
-      hist_4h AS (
-        SELECT DISTINCT ON (oss.market_id)
-          oss.market_id, oss.oracle_price
-        FROM global.oracle_sanity_snapshots oss
-        JOIN latest_oracle lo ON lo.market_id = oss.market_id
-        WHERE oss.timestamp <= lo.ts_now - INTERVAL '4 hours'
-        ORDER BY oss.market_id, oss.timestamp DESC
+      snapshots_filtered AS (
+        SELECT market_id, oracle_price, timestamp
+        FROM global.oracle_sanity_snapshots
+        WHERE timestamp IN (
+          SELECT ts_now FROM nearest_ts
+          UNION
+          SELECT ts_5m FROM nearest_ts
+          UNION
+          SELECT ts_15m FROM nearest_ts
+          UNION
+          SELECT ts_1h FROM nearest_ts
+          UNION
+          SELECT ts_4h FROM nearest_ts
+        )
       ),
       stable_tokens AS (
         SELECT DISTINCT symbol FROM global.peg_monitored_tokens WHERE peg_type = 'USD' AND active = true
       )
       SELECT
-        lo.market_address,
-        lo.asset,
-        (EXISTS (SELECT 1 FROM stable_tokens st WHERE lo.asset ILIKE '%' || st.symbol || '%')) AS is_stable,
-        CASE WHEN h5.oracle_price > 0
-          THEN ((lo.price_now - h5.oracle_price) / h5.oracle_price * 100)
-          ELSE 0
-        END AS delta_5m,
-        CASE WHEN h15.oracle_price > 0
-          THEN ((lo.price_now - h15.oracle_price) / h15.oracle_price * 100)
-          ELSE 0
-        END AS delta_15m,
-        CASE WHEN h1h.oracle_price > 0
-          THEN ((lo.price_now - h1h.oracle_price) / h1h.oracle_price * 100)
-          ELSE 0
-        END AS delta_1h,
-        CASE WHEN h4h.oracle_price > 0
-          THEN ((lo.price_now - h4h.oracle_price) / h4h.oracle_price * 100)
-          ELSE 0
-        END AS delta_4h
-      FROM latest_oracle lo
-      LEFT JOIN hist_5m h5 ON h5.market_id = lo.market_id
-      LEFT JOIN hist_15m h15 ON h15.market_id = lo.market_id
-      LEFT JOIN hist_1h h1h ON h1h.market_id = lo.market_id
-      LEFT JOIN hist_4h h4h ON h4h.market_id = lo.market_id
+        um.contract_address AS market_address,
+        um.contract_name AS asset,
+        (EXISTS (SELECT 1 FROM stable_tokens st WHERE um.contract_name ILIKE '%' || st.symbol || '%')) AS is_stable,
+        COALESCE((s_now.oracle_price - s5.oracle_price) / NULLIF(s5.oracle_price, 0) * 100, 0) AS delta_5m,
+        COALESCE((s_now.oracle_price - s15.oracle_price) / NULLIF(s15.oracle_price, 0) * 100, 0) AS delta_15m,
+        COALESCE((s_now.oracle_price - s1h.oracle_price) / NULLIF(s1h.oracle_price, 0) * 100, 0) AS delta_1h,
+        COALESCE((s_now.oracle_price - s4h.oracle_price) / NULLIF(s4h.oracle_price, 0) * 100, 0) AS delta_4h
+      FROM global.usg_markets um
+      CROSS JOIN nearest_ts nts
+      JOIN snapshots_filtered s_now ON s_now.market_id = um.id AND s_now.timestamp = nts.ts_now
+      LEFT JOIN snapshots_filtered s5 ON s5.market_id = um.id AND s5.timestamp = nts.ts_5m
+      LEFT JOIN snapshots_filtered s15 ON s15.market_id = um.id AND s15.timestamp = nts.ts_15m
+      LEFT JOIN snapshots_filtered s1h ON s1h.market_id = um.id AND s1h.timestamp = nts.ts_1h
+      LEFT JOIN snapshots_filtered s4h ON s4h.market_id = um.id AND s4h.timestamp = nts.ts_4h
+      WHERE um.is_active = true
     `
   }
 
@@ -504,25 +488,31 @@ export class MonitoringRepository {
         WHERE ps.user_debt > 0
         ${marketFilter}
       ),
+      with_ltv AS (
+        SELECT
+          lp.*,
+          lp.ltv * 100 AS ltv_pct
+        FROM latest_positions lp
+        WHERE lp.rn = 1
+      ),
       bucketed AS (
         SELECT
           um.contract_name AS market_name,
           mc.max_ltv,
-          lp.ltv,
-          lp.position_value_usd,
-          lp.user_debt,
+          wl.ltv_pct,
+          wl.position_value_usd,
+          wl.user_debt,
           CASE
-            WHEN lp.ltv <= 50 THEN '0_50'
-            WHEN lp.ltv <= 70 THEN '50_70'
-            WHEN lp.ltv <= 80 THEN '70_80'
-            WHEN lp.ltv <= 90 THEN '80_90'
-            WHEN lp.ltv <= 100 THEN '90_plus'
+            WHEN wl.ltv_pct <= 50 THEN '0_50'
+            WHEN wl.ltv_pct <= 70 THEN '50_70'
+            WHEN wl.ltv_pct <= 80 THEN '70_80'
+            WHEN wl.ltv_pct <= 90 THEN '80_90'
+            WHEN wl.ltv_pct <= 100 THEN '90_plus'
             ELSE '100_plus'
           END AS bucket
-        FROM latest_positions lp
-        JOIN global.market_config mc ON mc.market_id = lp.market_id
-        JOIN global.usg_markets um ON um.id = lp.market_id
-        WHERE lp.rn = 1
+        FROM with_ltv wl
+        JOIN global.market_config mc ON mc.market_id = wl.market_id
+        JOIN global.usg_markets um ON um.id = wl.market_id
       )
       SELECT
         market_name,
