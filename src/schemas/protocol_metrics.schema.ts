@@ -140,6 +140,103 @@ export const totalSupplySchema: RouteShorthandOptions = {
   },
 }
 
+export const pricesSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    params: {
+      type: "object",
+      required: ["tokenAddresses"],
+      properties: {
+        tokenAddresses: {
+          type: "string",
+          pattern: "^0x[a-fA-F0-9]{40}(,0x[a-fA-F0-9]{40})*$",
+          description: "One or more token addresses separated by commas.",
+        },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+            priceUSD: { type: ["string", "null"] },
+          },
+          required: ["tokenAddress", "priceUSD"],
+        },
+      },
+    },
+  },
+}
+
+export const priceSourcesSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+            name: { type: "string" },
+          },
+          required: ["tokenAddress", "name"],
+        },
+      },
+    },
+  },
+}
+
+export const priceHistorySchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    params: {
+      type: "object",
+      required: ["tokenAddresses"],
+      properties: {
+        tokenAddresses: {
+          type: "string",
+          pattern: "^0x[a-fA-F0-9]{40}(,0x[a-fA-F0-9]{40})*$",
+          description: "One to five token addresses separated by commas.",
+        },
+      },
+    },
+    querystring: {
+      type: "object",
+      additionalProperties: false,
+      required: ["range"],
+      properties: {
+        range: { type: "string", enum: ["1D", "1W", "1M", "1Y", "ALL"] },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+            history: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  timestamp: { type: "string", format: "date-time" },
+                  amount: { type: "string" },
+                },
+                required: ["timestamp", "amount"],
+              },
+            },
+          },
+          required: ["tokenAddress", "history"],
+        },
+      },
+    },
+  },
+}
+
 export const getMarketHistoricalMarketDataSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

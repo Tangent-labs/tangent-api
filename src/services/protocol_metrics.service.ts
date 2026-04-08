@@ -1,6 +1,7 @@
 import { AddressLike, isAddress } from "ethers"
 import { ProtocolMetricsRepository } from "../data/protocol_metrics.data.js"
 import { RawEvent, TransformedEvent } from "../types.js"
+import { rangeToMinDate } from "../utils.js"
 
 export class ProtocolMetricsService {
   protocolMetricsRepo: ProtocolMetricsRepository
@@ -21,10 +22,6 @@ export class ProtocolMetricsService {
     }))
   }
 
-  /**
-   * Aligns the upper time bound to the previous bucket boundary so the chart
-   * uses stable time slices like 00/15/30/45 instead of sliding windows.
-   */
   private alignDateToBucket(date: Date, bucketSizeMinutes: number): Date {
     const aligned = new Date(date)
     const bucketMs = bucketSizeMinutes * 60_000
@@ -115,6 +112,91 @@ export class ProtocolMetricsService {
 
     try {
       return await this.protocolMetricsRepo.getSUSGApy("SAVING_APY_USG", datFrom, dateTo, TARGET_POINTS)
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getLatestPrices(tokenAddresses: string[]) {
+    if (tokenAddresses.length === 0) {
+      return []
+    }
+
+    const normalizedAddresses = tokenAddresses.map((address) => address.toLowerCase())
+
+    if (normalizedAddresses.some((address) => !isAddress(address))) {
+      throw new Error("Invalid token address")
+    }
+
+    try {
+      return await this.protocolMetricsRepo.getLatestPrices(normalizedAddresses)
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getPriceSources() {
+    try {
+      return await this.protocolMetricsRepo.getPriceSources()
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getPriceHistory(address: string, from: number | null, to: number) {
+    if (!isAddress(address)) {
+      throw new Error("Invalid token address")
+    }
+
+    const TARGET_POINTS = 200
+
+    const datFrom = from ? new Date(from).toISOString() : null
+    const dateTo = new Date(to).toISOString()
+
+    try {
+      return await this.protocolMetricsRepo.getPriceHistory([address.toLowerCase()], datFrom, dateTo, TARGET_POINTS)
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
+  async getPriceHistoryByRange(addresses: string[], range: "1D" | "1W" | "1M" | "1Y" | "ALL") {
+    if (addresses.length === 0) {
+      return []
+    }
+
+    if (addresses.length > 5) {
+      throw new Error("A maximum of 5 token addresses is allowed")
+    }
+
+    const normalizedAddresses = addresses.map((address) => address.toLowerCase())
+
+    if (normalizedAddresses.some((address) => !isAddress(address))) {
+      throw new Error("Invalid token address")
+    }
+
+    const TARGET_POINTS = 200
+    const now = await this.getBlockchainNow()
+    const dateTo = now.toISOString()
+    const normalizedRange = range.toLowerCase()
+    const dateFrom = normalizedRange === "all" ? null : rangeToMinDate(normalizedRange, now.toISOString())
+
+    try {
+      const rows = await this.protocolMetricsRepo.getPriceHistory(normalizedAddresses, dateFrom, dateTo, TARGET_POINTS)
+      const grouped = new Map<string, { tokenAddress: string; history: { timestamp: Date; amount: string }[] }>()
+
+      for (const row of rows) {
+        if (!grouped.has(row.tokenAddress)) {
+          grouped.set(row.tokenAddress, { tokenAddress: row.tokenAddress, history: [] })
+        }
+        grouped.get(row.tokenAddress)!.history.push({ timestamp: row.timestamp, amount: row.amount })
+      }
+
+      return normalizedAddresses.map((tokenAddress) => grouped.get(tokenAddress) ?? { tokenAddress, history: [] })
     } catch (err) {
       console.log(err)
       throw err

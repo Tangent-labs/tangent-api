@@ -2,11 +2,14 @@ import { FastifyInstance, FastifyRequest } from "fastify"
 
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
-import { EventsRoute, GetHistoricalMarketDataRoute, GetOracleMarketDataRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
+import { EventsRoute, GetHistoricalMarketDataRoute, GetOracleMarketDataRoute, PriceHistoryRoute, PricesRoute, PriceSourcesRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
 
 import {
   totalSupplySchema,
   aprsSchema,
+  priceHistorySchema,
+  priceSourcesSchema,
+  pricesSchema,
   savingAccountsApySchema,
   susgHistoricalDataSchema,
   eventsSchema,
@@ -72,6 +75,27 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     }
   })
 
+  fastify.get<PricesRoute>("/prices/:tokenAddresses", pricesSchema, async (request, reply) => {
+    try {
+      const { tokenAddresses } = request.params
+      const result = await opts.protocolMetricsService.getLatestPrices(tokenAddresses.split(","))
+      return reply.status(200).send(result)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch prices" })
+    }
+  })
+
+  fastify.get<PriceSourcesRoute>("/price-sources", priceSourcesSchema, async (_, reply) => {
+    try {
+      const result = await opts.protocolMetricsService.getPriceSources()
+      return reply.status(200).send(result)
+    } catch (err) {
+      reply.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch price sources" })
+    }
+  })
+
   fastify.get<sUSG>("/susg/apy/:dateTo/:dateFrom", susgHistoricalDataSchema, async (request, reply) => {
     try {
       const { dateTo, dateFrom } = request.params
@@ -84,6 +108,19 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch total supply" })
+    }
+  })
+
+  fastify.get<PriceHistoryRoute>("/price-history/:tokenAddresses", priceHistorySchema, async (request, reply) => {
+    try {
+      const { tokenAddresses } = request.params
+      const { range } = request.query
+      const priceHistory = await opts.protocolMetricsService.getPriceHistoryByRange(tokenAddresses.split(","), range)
+
+      return reply.status(200).send(priceHistory)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch price history" })
     }
   })
 
