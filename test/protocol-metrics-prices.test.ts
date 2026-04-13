@@ -17,7 +17,6 @@ describe("protocol metrics price routes", () => {
 
   const protocolMetricsService = {
     getLatestPrices: vi.fn(async (addresses: string[]) => addresses.map((tokenAddress) => ({ tokenAddress, priceUSD: "1.0000" }))),
-    getPriceSources: vi.fn(async () => [{ tokenAddress: addrA, name: "USG" }]),
     getPriceHistoryByRange: vi.fn(async (addresses: string[], _range: string) =>
       addresses.map((tokenAddress) => ({
         tokenAddress,
@@ -62,24 +61,6 @@ describe("protocol metrics price routes", () => {
     const res = await app.inject({ method: "GET", url: `/prices/${addrA},invalid-address` })
 
     expect(res.statusCode).toBe(400)
-  })
-
-  it("returns price sources", async () => {
-    const res = await app.inject({ method: "GET", url: "/price-sources" })
-
-    expect(res.statusCode).toBe(200)
-    expect(protocolMetricsService.getPriceSources).toHaveBeenCalled()
-  })
-
-  it("caches identical price source requests", async () => {
-    protocolMetricsService.getPriceSources.mockClear()
-
-    const first = await app.inject({ method: "GET", url: "/price-sources" })
-    const second = await app.inject({ method: "GET", url: "/price-sources" })
-
-    expect(first.statusCode).toBe(200)
-    expect(second.statusCode).toBe(200)
-    expect(protocolMetricsService.getPriceSources).toHaveBeenCalledTimes(1)
   })
 
   it("accepts lowercase ranges on /price-history", async () => {

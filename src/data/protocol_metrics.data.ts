@@ -327,16 +327,6 @@ export class ProtocolMetricsRepository {
     `
   }
 
-  async getPriceSources(): Promise<PriceSourceItem[]> {
-    return await this.prismaClient.$queryRaw<PriceSourceItem[]>`
-      SELECT
-        ps.address AS "tokenAddress",
-        ps.name AS "name"
-      FROM points.price_source ps
-      ORDER BY ps.address ASC;
-    `
-  }
-
   async getPriceHistory(addresses: string[], fromISO: string | null, toISO: string, targetPoints: number): Promise<TokenPriceHistoryPoint[]> {
     const normalizedAddresses = addresses.map((address) => address.toLowerCase())
     const inputRows = normalizedAddresses.map((address, index) => Prisma.sql`(${address}, ${index})`)

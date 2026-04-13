@@ -170,25 +170,6 @@ export const pricesSchema: RouteShorthandOptions = {
   },
 }
 
-export const priceSourcesSchema: RouteShorthandOptions = {
-  schema: {
-    tags: ["Protocol metrics"],
-    response: {
-      200: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            tokenAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-            name: { type: "string" },
-          },
-          required: ["tokenAddress", "name"],
-        },
-      },
-    },
-  },
-}
-
 export const priceHistorySchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

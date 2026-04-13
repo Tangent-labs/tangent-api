@@ -8,7 +8,6 @@ import {
   GetOracleMarketDataRoute,
   PriceHistoryRoute,
   PricesRoute,
-  PriceSourcesRoute,
   ProtocolTvl,
   sUSG,
   TotalSupply,
@@ -18,7 +17,6 @@ import {
   totalSupplySchema,
   aprsSchema,
   priceHistorySchema,
-  priceSourcesSchema,
   pricesSchema,
   savingAccountsApySchema,
   susgHistoricalDataSchema,
@@ -78,9 +76,9 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/aprs", aprsSchema, async (request, reply) => {
     try {
-      const APRs = await opts.protocolMetricsService.getLastMarketAprs()
-
-      return reply.status(200).send(APRs)
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getLastMarketAprs()
+      })
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
@@ -89,8 +87,9 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/savingAccounts/apy", savingAccountsApySchema, async (request, reply) => {
     try {
-      const apys = await opts.protocolMetricsService.getSavingAccountsApy()
-      return reply.status(200).send(apys)
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getSavingAccountsApy()
+      })
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
@@ -106,17 +105,6 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch prices" })
-    }
-  })
-
-  fastify.get<PriceSourcesRoute>("/price-sources", priceSourcesSchema, async (request, reply) => {
-    try {
-      return await sendCached(request, reply, 120_000, async () => {
-        return await opts.protocolMetricsService.getPriceSources()
-      })
-    } catch (err) {
-      reply.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch price sources" })
     }
   })
 
@@ -177,8 +165,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     try {
       const { marketAddress } = request.params
       const { dateEnd, bucketCount, bucketSizeMinutes } = request.query
-      const result = await opts.protocolMetricsService.getOraclePriceBuckets(marketAddress, dateEnd, bucketCount, bucketSizeMinutes)
-      return reply.status(200).send(result)
+      return await opts.protocolMetricsService.getOraclePriceBuckets(marketAddress, dateEnd, bucketCount, bucketSizeMinutes)
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch oracle prices" })

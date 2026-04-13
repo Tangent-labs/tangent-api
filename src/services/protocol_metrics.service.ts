@@ -137,15 +137,6 @@ export class ProtocolMetricsService {
     }
   }
 
-  async getPriceSources() {
-    try {
-      return await this.protocolMetricsRepo.getPriceSources()
-    } catch (err) {
-      console.log(err)
-      throw err
-    }
-  }
-
   async getPriceHistory(address: string, from: number | null, to: number) {
     if (!isAddress(address)) {
       throw new Error("Invalid token address")

@@ -1,5 +1,4 @@
 import { AddressLike } from "ethers"
-import { RouteGenericInterface } from "fastify"
 
 export interface ReferralData {
   code: string
@@ -55,9 +54,6 @@ export interface PricesRoute {
     tokenAddresses: string
   }
 }
-
-// no parameters for this route
-export type PriceSourcesRoute = RouteGenericInterface
 
 export interface PriceHistoryRoute {
   Params: {
