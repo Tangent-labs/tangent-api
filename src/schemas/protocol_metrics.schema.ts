@@ -208,7 +208,7 @@ export const priceHistorySchema: RouteShorthandOptions = {
       additionalProperties: false,
       required: ["range"],
       properties: {
-        range: { type: "string", enum: ["1D", "1W", "1M", "1Y", "ALL"] },
+        range: { type: "string", enum: ["1d", "1w", "1m", "1y", "all"] },
       },
     },
     response: {

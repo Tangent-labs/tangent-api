@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import Fastify, { FastifyInstance } from "fastify"
 
+import cachePlugin from "../src/plugins/cache.js"
 import { registerProtocolMetricsRoute } from "../src/routes/protocol_metrics.route.js"
 import { ProtocolMetricsService } from "../src/services/protocol_metrics.service.js"
 
@@ -36,8 +37,14 @@ describe("protocol metrics price routes", () => {
 
   beforeAll(async () => {
     app = Fastify()
+    await app.register(cachePlugin)
     await app.register(registerProtocolMetricsRoute, { protocolMetricsService })
     await app.ready()
+  })
+
+  beforeEach(() => {
+    app.longCache.clear()
+    vi.clearAllMocks()
   })
 
   afterAll(async () => {
@@ -63,6 +70,41 @@ describe("protocol metrics price routes", () => {
     expect(res.statusCode).toBe(200)
     expect(protocolMetricsService.getPriceSources).toHaveBeenCalled()
   })
+
+  it("caches identical price source requests", async () => {
+    protocolMetricsService.getPriceSources.mockClear()
+
+    const first = await app.inject({ method: "GET", url: "/price-sources" })
+    const second = await app.inject({ method: "GET", url: "/price-sources" })
+
+    expect(first.statusCode).toBe(200)
+    expect(second.statusCode).toBe(200)
+    expect(protocolMetricsService.getPriceSources).toHaveBeenCalledTimes(1)
+  })
+
+  it("accepts lowercase ranges on /price-history", async () => {
+    const res = await app.inject({ method: "GET", url: `/price-history/${addrA}?range=1w` })
+
+    expect(res.statusCode).toBe(200)
+    expect(protocolMetricsService.getPriceHistoryByRange).toHaveBeenCalledWith([addrA], "1w")
+  })
+
+  it("rejects uppercase ranges on /price-history", async () => {
+    const res = await app.inject({ method: "GET", url: `/price-history/${addrA}?range=1W` })
+
+    expect(res.statusCode).toBe(400)
+  })
+
+  it("caches identical price history requests", async () => {
+    protocolMetricsService.getPriceHistoryByRange.mockClear()
+
+    const first = await app.inject({ method: "GET", url: `/price-history/${addrA}?range=1w` })
+    const second = await app.inject({ method: "GET", url: `/price-history/${addrA}?range=1w` })
+
+    expect(first.statusCode).toBe(200)
+    expect(second.statusCode).toBe(200)
+    expect(protocolMetricsService.getPriceHistoryByRange).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe("ProtocolMetricsService.getPriceHistoryByRange", () => {
@@ -73,7 +115,7 @@ describe("ProtocolMetricsService.getPriceHistoryByRange", () => {
     const service = new ProtocolMetricsService(repo as unknown as ConstructorParameters<typeof ProtocolMetricsService>[0])
     ;(service as unknown as { getBlockchainNow: () => Promise<Date> }).getBlockchainNow = async () => new Date("2026-01-08T12:00:00.000Z")
 
-    await service.getPriceHistoryByRange(["0x" + "A".repeat(40)], "1W")
+    await service.getPriceHistoryByRange(["0x" + "A".repeat(40)], "1w")
 
     expect(repo.getPriceHistory).toHaveBeenCalledWith([addrA], "2026-01-01T00:00:00Z", "2026-01-08T12:00:00.000Z", 200)
   })
@@ -83,7 +125,7 @@ describe("ProtocolMetricsService.getPriceHistoryByRange", () => {
       getPriceHistory: vi.fn(),
     } as unknown as ConstructorParameters<typeof ProtocolMetricsService>[0])
 
-    await expect(service.getPriceHistoryByRange([addrA, addrB, addrC, addrD, addrE, addrF], "1D")).rejects.toThrow(
+    await expect(service.getPriceHistoryByRange([addrA, addrB, addrC, addrD, addrE, addrF], "1d")).rejects.toThrow(
       "A maximum of 5 token addresses is allowed",
     )
   })

@@ -2,7 +2,17 @@ import { FastifyInstance, FastifyRequest } from "fastify"
 
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
-import { EventsRoute, GetHistoricalMarketDataRoute, GetOracleMarketDataRoute, PriceHistoryRoute, PricesRoute, PriceSourcesRoute, ProtocolTvl, sUSG, TotalSupply } from "../types.js"
+import {
+  EventsRoute,
+  GetHistoricalMarketDataRoute,
+  GetOracleMarketDataRoute,
+  PriceHistoryRoute,
+  PricesRoute,
+  PriceSourcesRoute,
+  ProtocolTvl,
+  sUSG,
+  TotalSupply,
+} from "../types.js"
 
 import {
   totalSupplySchema,
@@ -19,12 +29,30 @@ import {
 } from "../schemas/protocol_metrics.schema.js"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
+  async function sendCached<T>(
+    request: FastifyRequest,
+    reply: { status: (code: number) => { send: (payload: T) => unknown } },
+    ttlMs: number,
+    producer: () => Promise<T>
+  ) {
+    const cacheKey = fastify.generateCacheKey(request)
+    const cached = fastify.getLongCache<T>(cacheKey)
+
+    if (cached !== undefined) {
+      return reply.status(200).send(cached)
+    }
+
+    const value = await producer()
+    fastify.setLongCache(cacheKey, value, ttlMs)
+
+    return reply.status(200).send(value)
+  }
+
   fastify.get<ProtocolTvl>("/tvl/:dateTo/:dateFrom", tvlSchema, async (request, reply) => {
     try {
       const { dateTo, dateFrom } = request.params
 
       const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
-
       const tvl = await opts.protocolMetricsService.getTotalValueLocked(parsedDateFrom, dateTo)
 
       return reply.status(200).send(tvl)
@@ -39,7 +67,6 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const { dateTo, dateFrom, tokenAddress } = request.params
 
       const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
-
       const totalSupply = await opts.protocolMetricsService.getTotalSupply(tokenAddress, parsedDateFrom, dateTo)
 
       return reply.status(200).send(totalSupply)
@@ -49,7 +76,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     }
   })
 
-  fastify.get("/aprs", aprsSchema, async (_, reply) => {
+  fastify.get("/aprs", aprsSchema, async (request, reply) => {
     try {
       const APRs = await opts.protocolMetricsService.getLastMarketAprs()
 
@@ -62,12 +89,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/savingAccounts/apy", savingAccountsApySchema, async (request, reply) => {
     try {
-      const cacheKey = fastify.generateCacheKey(request)
-      let apys = fastify.longCache.get(cacheKey)
-      if (!apys) {
-        apys = await opts.protocolMetricsService.getSavingAccountsApy()
-        fastify.setLongCache(cacheKey, apys, 10_000)
-      }
+      const apys = await opts.protocolMetricsService.getSavingAccountsApy()
       return reply.status(200).send(apys)
     } catch (err) {
       fastify.log.error(err)
@@ -78,18 +100,20 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
   fastify.get<PricesRoute>("/prices/:tokenAddresses", pricesSchema, async (request, reply) => {
     try {
       const { tokenAddresses } = request.params
-      const result = await opts.protocolMetricsService.getLatestPrices(tokenAddresses.split(","))
-      return reply.status(200).send(result)
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getLatestPrices(tokenAddresses.split(","))
+      })
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch prices" })
     }
   })
 
-  fastify.get<PriceSourcesRoute>("/price-sources", priceSourcesSchema, async (_, reply) => {
+  fastify.get<PriceSourcesRoute>("/price-sources", priceSourcesSchema, async (request, reply) => {
     try {
-      const result = await opts.protocolMetricsService.getPriceSources()
-      return reply.status(200).send(result)
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getPriceSources()
+      })
     } catch (err) {
       reply.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch price sources" })
@@ -101,7 +125,6 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
       const { dateTo, dateFrom } = request.params
 
       const parsedDateFrom = dateFrom === "null" ? null : Number(dateFrom)
-
       const susgAPY = await opts.protocolMetricsService.getSUSGApy(parsedDateFrom, dateTo)
 
       return reply.status(200).send(susgAPY)
@@ -115,9 +138,9 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     try {
       const { tokenAddresses } = request.params
       const { range } = request.query
-      const priceHistory = await opts.protocolMetricsService.getPriceHistoryByRange(tokenAddresses.split(","), range)
-
-      return reply.status(200).send(priceHistory)
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getPriceHistoryByRange(tokenAddresses.split(","), range)
+      })
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch price history" })
@@ -127,7 +150,6 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
   fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
     try {
       const { account, market } = request.params
-
       const rawEvents = await opts.protocolMetricsService.getEventsByAccount(account.toLowerCase(), market)
 
       const transformedEvents = opts.protocolMetricsService.transformEvents(rawEvents)

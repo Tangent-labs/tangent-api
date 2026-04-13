@@ -1,4 +1,5 @@
 import { AddressLike } from "ethers"
+import { RouteGenericInterface } from "fastify"
 
 export interface ReferralData {
   code: string
@@ -55,14 +56,15 @@ export interface PricesRoute {
   }
 }
 
-export interface PriceSourcesRoute {}
+// no parameters for this route
+export type PriceSourcesRoute = RouteGenericInterface
 
 export interface PriceHistoryRoute {
   Params: {
     tokenAddresses: string
   }
   Querystring: {
-    range: "1D" | "1W" | "1M" | "1Y" | "ALL"
+    range: "1d" | "1w" | "1m" | "1y" | "all"
   }
 }
 

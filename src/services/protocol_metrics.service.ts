@@ -164,7 +164,7 @@ export class ProtocolMetricsService {
     }
   }
 
-  async getPriceHistoryByRange(addresses: string[], range: "1D" | "1W" | "1M" | "1Y" | "ALL") {
+  async getPriceHistoryByRange(addresses: string[], range: "1d" | "1w" | "1m" | "1y" | "all") {
     if (addresses.length === 0) {
       return []
     }
@@ -182,7 +182,7 @@ export class ProtocolMetricsService {
     const TARGET_POINTS = 200
     const now = await this.getBlockchainNow()
     const dateTo = now.toISOString()
-    const normalizedRange = range.toLowerCase()
+    const normalizedRange = range
     const dateFrom = normalizedRange === "all" ? null : rangeToMinDate(normalizedRange, now.toISOString())
 
     try {
