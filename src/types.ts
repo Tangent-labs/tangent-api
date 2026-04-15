@@ -49,6 +49,21 @@ export interface TotalSupply {
   }
 }
 
+export interface PricesRoute {
+  Params: {
+    tokenAddresses: string
+  }
+}
+
+export interface PriceHistoryRoute {
+  Params: {
+    tokenAddresses: string
+  }
+  Querystring: {
+    range: "1d" | "1w" | "1m" | "1y" | "all"
+  }
+}
+
 export interface ProtocolTvl {
   Params: {
     dateTo: number

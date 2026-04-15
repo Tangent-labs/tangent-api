@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client"
-import { AddressLike } from "ethers"
 
 export class PredepositRepository {
   prismaClient: PrismaClient

@@ -9,6 +9,22 @@ export type OraclePricePoint = {
   price: number | null
 }
 
+export type TokenPricePoint = {
+  tokenAddress: string
+  priceUSD: string | null
+}
+
+export type TokenPriceHistoryPoint = {
+  tokenAddress: string
+  timestamp: Date
+  amount: string
+}
+
+export type PriceSourceItem = {
+  tokenAddress: string
+  name: string
+}
+
 export class ProtocolMetricsRepository {
   prismaClient: PrismaClient
 
@@ -285,6 +301,96 @@ export class ProtocolMetricsRepository {
   `
 
     return rows
+  }
+
+  async getLatestPrices(tokenAddresses: string[]): Promise<TokenPricePoint[]> {
+    const normalizedAddresses = tokenAddresses.map((address) => address.toLowerCase())
+    const inputRows = normalizedAddresses.map((address, index) => Prisma.sql`(${address}, ${index})`)
+
+    if (inputRows.length === 0) {
+      return []
+    }
+
+    return await this.prismaClient.$queryRaw<TokenPricePoint[]>`
+      WITH input(address, ord) AS (
+        VALUES ${Prisma.join(inputRows)}
+      )
+      SELECT
+        i.address AS "tokenAddress",
+        lpf.price_usd::text AS "priceUSD"
+      FROM input i
+      LEFT JOIN points.price_source ps
+        ON ps.address = i.address
+      LEFT JOIN points.last_price_feeds lpf
+        ON lpf.price_source_id = ps.id
+      ORDER BY i.ord ASC;
+    `
+  }
+
+  async getPriceHistory(addresses: string[], fromISO: string | null, toISO: string, targetPoints: number): Promise<TokenPriceHistoryPoint[]> {
+    const normalizedAddresses = addresses.map((address) => address.toLowerCase())
+    const inputRows = normalizedAddresses.map((address, index) => Prisma.sql`(${address}, ${index})`)
+
+    if (inputRows.length === 0) {
+      return []
+    }
+
+    return await this.prismaClient.$queryRaw<TokenPriceHistoryPoint[]>`
+      WITH input(address, ord) AS (
+        VALUES ${Prisma.join(inputRows)}
+      ),
+      token_price_source AS (
+        SELECT
+          ps.address AS token_address,
+          ps.id AS price_source_id
+        FROM points.price_source ps
+        JOIN input i ON i.address = ps.address
+      ),
+      filtered AS (
+        SELECT
+          tps.token_address AS "tokenAddress",
+          i.ord,
+          pf.timestamp,
+          pf.price_usd::text AS amount
+        FROM points.price_feeds pf
+        JOIN token_price_source tps ON tps.price_source_id = pf.price_source_id
+        JOIN input i ON i.address = tps.token_address
+        WHERE pf.timestamp >= COALESCE(
+                ${fromISO}::timestamptz,
+                (
+                  SELECT MIN(pf2.timestamp)
+                  FROM points.price_feeds pf2
+                  JOIN token_price_source tps2 ON tps2.price_source_id = pf2.price_source_id
+                  WHERE tps2.token_address = tps.token_address
+                )
+              )
+          AND pf.timestamp <= ${toISO}::timestamptz
+      ),
+      row_ratio AS (
+        SELECT
+          "tokenAddress",
+          GREATEST(CEIL(COUNT(*)::numeric / ${targetPoints}::numeric), 1)::int AS ratio
+        FROM filtered
+        GROUP BY "tokenAddress"
+      ),
+      ranked AS (
+        SELECT
+          f."tokenAddress",
+          f.ord,
+          f.timestamp,
+          f.amount,
+          ROW_NUMBER() OVER (PARTITION BY f."tokenAddress" ORDER BY f.timestamp ASC) AS rn
+        FROM filtered f
+      )
+      SELECT
+        r."tokenAddress",
+        r.timestamp,
+        r.amount
+      FROM ranked r
+      JOIN row_ratio rr ON rr."tokenAddress" = r."tokenAddress"
+      WHERE (r.rn - 1) % rr.ratio = 0
+      ORDER BY r.ord ASC, r.timestamp ASC;
+    `
   }
 
   async getLastMarketAprs(): Promise<MarketAPR[]> {
