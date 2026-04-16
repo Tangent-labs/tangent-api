@@ -120,7 +120,7 @@ To be eligible for an allocation of TAN governance tokens, a participant must cu
 2. DISTRIBUTION MECHANICS
 ------------------------------
 
-At the end of the Pre-Deposit campaign, x% of the total TAN supply will be distributed proportionally among all eligible participants, based on the amount of LP tokens effectively maintained until the final snapshot.
+At the end of the Pre-Deposit campaign, 2% of the total TAN supply will be distributed proportionally among all eligible participants, based on the amount of LP tokens effectively maintained until the final snapshot.
 
 
 ------------------------------
