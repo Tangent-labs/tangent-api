@@ -103,6 +103,20 @@ interface LtvDistributionRow {
   bad_debt: number
 }
 
+export interface IndexerHealthRow {
+  indexer_name: string
+  latest_status: "SUCCESS" | "FAILED" | null
+  latest_finished_at: Date | null
+  latest_success_finished_at: Date | null
+  exec_1h: bigint
+  failure_1h: bigint
+  exec_12h: bigint
+  failure_12h: bigint
+  exec_24h: bigint
+  failure_24h: bigint
+  fail_streak_count: bigint
+}
+
 export interface BlockRow {
   block_id: bigint
   created_at: Date | null
@@ -524,6 +538,88 @@ export class MonitoringRepository {
       FROM bucketed
       GROUP BY market_name, max_ltv, bucket
       ORDER BY market_name, bucket
+    `
+  }
+
+  async getIndexerHealthRows(indexerNames: string[]): Promise<IndexerHealthRow[]> {
+    if (indexerNames.length === 0) return []
+
+    return await this.prismaClient.$queryRaw<IndexerHealthRow[]>`
+      WITH selected_indexers AS (
+        SELECT unnest(ARRAY[${Prisma.join(indexerNames)}]::text[]) AS indexer_name
+      ),
+      latest AS (
+        SELECT
+          iel.indexer_name,
+          iel.status::text AS latest_status,
+          iel.finished_at AS latest_finished_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY iel.indexer_name
+            ORDER BY iel.finished_at DESC NULLS LAST, iel.started_at DESC NULLS LAST
+          ) AS rn
+        FROM "global"."indexer_execution_log" iel
+        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
+      ),
+      latest_success AS (
+        SELECT
+          iel.indexer_name,
+          MAX(iel.finished_at) AS latest_success_finished_at
+        FROM "global"."indexer_execution_log" iel
+        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
+        WHERE iel.status = 'SUCCESS'::"global"."IndexerExecutionStatus"
+        GROUP BY iel.indexer_name
+      ),
+      counters AS (
+        SELECT
+          iel.indexer_name,
+          COUNT(*) FILTER (WHERE iel.finished_at >= NOW() - INTERVAL '1 hour')::bigint AS exec_1h,
+          COUNT(*) FILTER (
+            WHERE iel.finished_at >= NOW() - INTERVAL '1 hour'
+              AND iel.status = 'FAILED'::"global"."IndexerExecutionStatus"
+          )::bigint AS failure_1h,
+          COUNT(*) FILTER (WHERE iel.finished_at >= NOW() - INTERVAL '12 hours')::bigint AS exec_12h,
+          COUNT(*) FILTER (
+            WHERE iel.finished_at >= NOW() - INTERVAL '12 hours'
+              AND iel.status = 'FAILED'::"global"."IndexerExecutionStatus"
+          )::bigint AS failure_12h,
+          COUNT(*) FILTER (WHERE iel.finished_at >= NOW() - INTERVAL '24 hours')::bigint AS exec_24h,
+          COUNT(*) FILTER (
+            WHERE iel.finished_at >= NOW() - INTERVAL '24 hours'
+              AND iel.status = 'FAILED'::"global"."IndexerExecutionStatus"
+          )::bigint AS failure_24h
+        FROM "global"."indexer_execution_log" iel
+        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
+        GROUP BY iel.indexer_name
+      ),
+      failure_streak AS (
+        SELECT
+          iel.indexer_name,
+          COUNT(*) FILTER (WHERE iel.status = 'FAILED'::"global"."IndexerExecutionStatus")::bigint AS fail_streak_count
+        FROM "global"."indexer_execution_log" iel
+        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
+        LEFT JOIN latest_success ls ON ls.indexer_name = iel.indexer_name
+        WHERE ls.latest_success_finished_at IS NULL
+          OR iel.finished_at > ls.latest_success_finished_at
+        GROUP BY iel.indexer_name
+      )
+      SELECT
+        si.indexer_name,
+        l.latest_status,
+        l.latest_finished_at,
+        ls.latest_success_finished_at,
+        COALESCE(c.exec_1h, 0)::bigint AS exec_1h,
+        COALESCE(c.failure_1h, 0)::bigint AS failure_1h,
+        COALESCE(c.exec_12h, 0)::bigint AS exec_12h,
+        COALESCE(c.failure_12h, 0)::bigint AS failure_12h,
+        COALESCE(c.exec_24h, 0)::bigint AS exec_24h,
+        COALESCE(c.failure_24h, 0)::bigint AS failure_24h,
+        COALESCE(fs.fail_streak_count, 0)::bigint AS fail_streak_count
+      FROM selected_indexers si
+      LEFT JOIN latest l ON l.indexer_name = si.indexer_name AND l.rn = 1
+      LEFT JOIN latest_success ls ON ls.indexer_name = si.indexer_name
+      LEFT JOIN counters c ON c.indexer_name = si.indexer_name
+      LEFT JOIN failure_streak fs ON fs.indexer_name = si.indexer_name
+      ORDER BY si.indexer_name ASC
     `
   }
 }

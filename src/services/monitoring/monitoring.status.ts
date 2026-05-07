@@ -1,4 +1,4 @@
-import { MonitoringThresholds } from "./monitoring.types.js"
+import { IndexerHealthConfig, IndexerHealthSeverity, MonitoringThresholds } from "./monitoring.types.js"
 
 export function computeCollateralizationStatus(
   cr: number,
@@ -93,4 +93,64 @@ export function computeTvlVariationStatus(delta1hPct: number, delta24hPct: numbe
   if (absDelta1h >= dangerThreshold1h || absDelta24h >= dangerThreshold24h) return "danger"
   if (absDelta1h >= warningThreshold1h || absDelta24h >= warningThreshold24h) return "warning"
   return "ok"
+}
+
+export function computeIndexerStaleStatus(
+  latestSuccessfulFinishedAt: Date | string | null,
+  now: Date,
+  t: IndexerHealthConfig
+): IndexerHealthSeverity {
+  if (!latestSuccessfulFinishedAt) return "unknown"
+
+  const latestSuccess = latestSuccessfulFinishedAt instanceof Date ? latestSuccessfulFinishedAt : new Date(latestSuccessfulFinishedAt)
+  const ageMinutes = Math.max(0, (now.getTime() - latestSuccess.getTime()) / 60000)
+
+  if (ageMinutes >= t.critical_after_minutes) return "critical"
+  if (ageMinutes >= t.warning_after_minutes) return "warning"
+  return "ok"
+}
+
+export function computeIndexerFailureAccumulationStatus(
+  failStreakCount: number,
+  t: IndexerHealthConfig
+): Exclude<IndexerHealthSeverity, "unknown"> {
+  if (failStreakCount >= t.max_consecutive_failures) return "critical"
+  if (failStreakCount > 0) return "warning"
+  return "ok"
+}
+
+export function computeIndexerHealthStatus(
+  latestSuccessfulFinishedAt: Date | string | null,
+  failStreakCount: number,
+  now: Date,
+  t: IndexerHealthConfig
+): IndexerHealthSeverity {
+  const staleStatus = computeIndexerStaleStatus(latestSuccessfulFinishedAt, now, t)
+  const failureStatus = computeIndexerFailureAccumulationStatus(failStreakCount, t)
+
+  if (staleStatus === "unknown") return "unknown"
+  if (staleStatus === "critical" || failureStatus === "critical") return "critical"
+  if (staleStatus === "warning" || failureStatus === "warning") return "warning"
+  return "ok"
+}
+
+export function computeIndexerHealthSli(
+  latestSuccessfulFinishedAt: Date | string | null,
+  failStreakCount: number,
+  now: Date,
+  t: IndexerHealthConfig
+): number {
+  if (!latestSuccessfulFinishedAt || failStreakCount >= t.max_consecutive_failures) return 0
+
+  const latestSuccess = latestSuccessfulFinishedAt instanceof Date ? latestSuccessfulFinishedAt : new Date(latestSuccessfulFinishedAt)
+  const ageMinutes = Math.max(0, (now.getTime() - latestSuccess.getTime()) / 60000)
+  if (ageMinutes >= t.critical_after_minutes) return 0
+
+  const staleScore =
+    ageMinutes <= t.warning_after_minutes
+      ? 100
+      : ((t.critical_after_minutes - ageMinutes) / (t.critical_after_minutes - t.warning_after_minutes)) * 100
+  const failureScore = failStreakCount <= 0 ? 100 : Math.max(0, (1 - failStreakCount / t.max_consecutive_failures) * 100)
+
+  return Math.round(Math.min(staleScore, failureScore))
 }

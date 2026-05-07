@@ -7,6 +7,10 @@ import {
   computeOracleSanityStatus,
   computeDebtUtilizationStatus,
   computeTvlVariationStatus,
+  computeIndexerStaleStatus,
+  computeIndexerFailureAccumulationStatus,
+  computeIndexerHealthStatus,
+  computeIndexerHealthSli,
 } from "../src/services/monitoring/monitoring.status.js"
 
 // ---------------------------------------------------------------------------
@@ -224,5 +228,50 @@ describe("computeTvlVariationStatus", () => {
     expect(computeTvlVariationStatus(-16.0, -5.0, tPositive)).toBe("danger")
     expect(computeTvlVariationStatus(-12.0, -5.0, tPositive)).toBe("warning")
     expect(computeTvlVariationStatus(-5.0, -5.0, tPositive)).toBe("ok")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// indexer health helpers
+// ---------------------------------------------------------------------------
+describe("indexer health helpers", () => {
+  const now = new Date("2026-05-07T12:00:00.000Z")
+  const t = {
+    enabled: true,
+    warning_after_minutes: 15,
+    critical_after_minutes: 60,
+    max_consecutive_failures: 3,
+  }
+
+  it("classifies stale status at freshness boundaries", () => {
+    expect(computeIndexerStaleStatus(new Date("2026-05-07T11:50:00.000Z"), now, t)).toBe("ok")
+    expect(computeIndexerStaleStatus(new Date("2026-05-07T11:45:00.000Z"), now, t)).toBe("warning")
+    expect(computeIndexerStaleStatus(new Date("2026-05-07T11:00:00.000Z"), now, t)).toBe("critical")
+  })
+
+  it("returns unknown stale status when no successful execution exists", () => {
+    expect(computeIndexerStaleStatus(null, now, t)).toBe("unknown")
+    expect(computeIndexerHealthStatus(null, 0, now, t)).toBe("unknown")
+  })
+
+  it("classifies failure accumulation status", () => {
+    expect(computeIndexerFailureAccumulationStatus(0, t)).toBe("ok")
+    expect(computeIndexerFailureAccumulationStatus(1, t)).toBe("warning")
+    expect(computeIndexerFailureAccumulationStatus(3, t)).toBe("critical")
+  })
+
+  it("returns the worst indexer health status", () => {
+    expect(computeIndexerHealthStatus(new Date("2026-05-07T11:50:00.000Z"), 0, now, t)).toBe("ok")
+    expect(computeIndexerHealthStatus(new Date("2026-05-07T11:50:00.000Z"), 1, now, t)).toBe("warning")
+    expect(computeIndexerHealthStatus(new Date("2026-05-07T11:00:00.000Z"), 0, now, t)).toBe("critical")
+  })
+
+  it("computes SLI as 0..100 with stale and failure degradation", () => {
+    expect(computeIndexerHealthSli(new Date("2026-05-07T11:50:00.000Z"), 0, now, t)).toBe(100)
+    expect(computeIndexerHealthSli(new Date("2026-05-07T11:30:00.000Z"), 0, now, t)).toBe(67)
+    expect(computeIndexerHealthSli(new Date("2026-05-07T11:50:00.000Z"), 1, now, t)).toBe(67)
+    expect(computeIndexerHealthSli(new Date("2026-05-07T11:00:00.000Z"), 0, now, t)).toBe(0)
+    expect(computeIndexerHealthSli(new Date("2026-05-07T11:50:00.000Z"), 3, now, t)).toBe(0)
+    expect(computeIndexerHealthSli(null, 0, now, t)).toBe(0)
   })
 })
