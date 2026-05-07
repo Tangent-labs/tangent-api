@@ -9,5 +9,6 @@ export function getThresholds(): MonitoringThresholds {
     oracle_sanity: MODULE_CONFIG.oracle_sanity.thresholds,
     debt_utilization: MODULE_CONFIG.debt_utilization.thresholds,
     tvl_variation: MODULE_CONFIG.tvl_variation.thresholds,
+    indexer_health: MODULE_CONFIG.indexer_health.thresholds,
   }
 }

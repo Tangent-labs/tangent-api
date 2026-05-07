@@ -9,15 +9,31 @@ export const ALL_MODULES = [
   "tvl_variation",
   "liquidations",
   "ltv_distribution",
+  "indexer_health",
 ] as const
 
 export type MonitoringModuleName = (typeof ALL_MODULES)[number]
+export type IndexerHealthSeverity = "unknown" | "ok" | "warning" | "critical"
+
+export interface IndexerHealthConfig {
+  enabled: boolean
+  warning_after_minutes: number
+  critical_after_minutes: number
+  max_consecutive_failures: number
+}
+
+export interface IndexerHealthThresholds {
+  warning_after_minutes: number
+  critical_after_minutes: number
+  max_consecutive_failures: number
+  indexers: Record<string, IndexerHealthConfig>
+}
 
 export interface MonitoringModuleConfig {
   ttl: number
   filters: readonly (keyof ModuleFilters)[]
   paginated: boolean
-  thresholds?: Record<string, number | Record<string, number>>
+  thresholds?: unknown
 }
 
 function envFloat(key: string, fallback: number): number {
@@ -25,6 +41,68 @@ function envFloat(key: string, fallback: number): number {
   if (val === undefined || val === "") return fallback
   const parsed = parseFloat(val)
   return isNaN(parsed) ? fallback : parsed
+}
+
+function envBool(key: string, fallback: boolean): boolean {
+  const val = process.env[key]
+  if (val === undefined || val === "") return fallback
+  return val.toLowerCase() === "true"
+}
+
+const INDEXER_HEALTH_DEFAULTS = {
+  warning_after_minutes: envFloat("MONITORING_INDEXER_HEALTH_WARNING_AFTER_MIN", 15),
+  critical_after_minutes: envFloat("MONITORING_INDEXER_HEALTH_CRITICAL_AFTER_MIN", 60),
+  max_consecutive_failures: envFloat("MONITORING_INDEXER_HEALTH_DEFAULT_MAX_CONSECUTIVE_FAILURES", 3),
+} as const
+
+function indexerHealthConfig(envSuffix: string, defaults: Partial<IndexerHealthConfig> = {}): IndexerHealthConfig {
+  const base = { ...INDEXER_HEALTH_DEFAULTS, enabled: true, ...defaults }
+  return {
+    enabled: envBool(`MONITORING_INDEXER_HEALTH_${envSuffix}_ENABLED`, base.enabled),
+    warning_after_minutes: envFloat(`MONITORING_INDEXER_HEALTH_${envSuffix}_WARNING_AFTER_MIN`, base.warning_after_minutes),
+    critical_after_minutes: envFloat(`MONITORING_INDEXER_HEALTH_${envSuffix}_CRITICAL_AFTER_MIN`, base.critical_after_minutes),
+    max_consecutive_failures: envFloat(`MONITORING_INDEXER_HEALTH_${envSuffix}_MAX_CONSECUTIVE_FAILURES`, base.max_consecutive_failures),
+  }
+}
+
+export const INDEXER_HEALTH_THRESHOLDS: IndexerHealthThresholds = {
+  ...INDEXER_HEALTH_DEFAULTS,
+  indexers: {
+    block_indexer: indexerHealthConfig("BLOCK", {
+      warning_after_minutes: 5,
+      critical_after_minutes: 10,
+    }),
+    global_data_indexer: indexerHealthConfig("GLOBAL_DATA"),
+    liquidation_check: indexerHealthConfig("LIQUIDATION_CHECK", {
+      warning_after_minutes: 5,
+      critical_after_minutes: 10,
+    }),
+    liquidation_process: indexerHealthConfig("LIQUIDATION_PROCESS", {
+      warning_after_minutes: 5,
+      critical_after_minutes: 10,
+    }),
+    monitoring_check: indexerHealthConfig("MONITORING_CHECK"),
+    onchain_tx_bot: indexerHealthConfig("ONCHAIN_TX_BOT", {
+      warning_after_minutes: 120,
+      critical_after_minutes: 180,
+    }),
+    peg_keeper_update: indexerHealthConfig("PEG_KEEPER_UPDATE", {
+      warning_after_minutes: 120,
+      critical_after_minutes: 180,
+    }),
+    predeposit_script: indexerHealthConfig("PREDEPOSIT", {
+      enabled: false,
+    }),
+    points_lp_indexer: indexerHealthConfig("POINTS_LP", {
+      warning_after_minutes: 1440,
+      critical_after_minutes: 2880,
+    }),
+    points_votes_indexer: indexerHealthConfig("POINTS_VOTES", {
+      warning_after_minutes: 1440,
+      critical_after_minutes: 2880,
+    }),
+    snapshot_prices: indexerHealthConfig("SNAPSHOT_PRICES"),
+  },
 }
 
 export const MODULE_CONFIG = {
@@ -123,6 +201,12 @@ export const MODULE_CONFIG = {
     ttl: 60,
     filters: ["market_address"],
     paginated: false,
+  },
+  indexer_health: {
+    ttl: 60,
+    filters: [],
+    paginated: false,
+    thresholds: INDEXER_HEALTH_THRESHOLDS,
   },
 } satisfies Record<MonitoringModuleName, MonitoringModuleConfig>
 
@@ -260,6 +344,23 @@ export interface LtvDistributionItem {
   total_tvl: number
 }
 
+export interface IndexerHealthItem {
+  indexer_name: string
+  enabled: boolean
+  latest_status: "SUCCESS" | "FAILED" | null
+  latest_finished_at: string | null
+  exec_1h: number
+  failure_1h: number
+  exec_12h: number
+  failure_12h: number
+  exec_24h: number
+  failure_24h: number
+  fail_streak_count: number
+  status_stale: IndexerHealthSeverity
+  status_failure_accumulation: Exclude<IndexerHealthSeverity, "unknown">
+  sli: number
+}
+
 export interface ModuleFilters {
   market_address?: string
   borrower_address?: string
@@ -282,6 +383,7 @@ export interface MonitoringModuleDataMap {
   tvl_variation: TvlVariationItem[]
   liquidations: LiquidationsModuleData
   ltv_distribution: LtvDistributionItem[]
+  indexer_health: IndexerHealthItem[]
 }
 
 export interface MonitoringResponse {
@@ -295,9 +397,7 @@ export interface MonitoringResponse {
 }
 
 export type MonitoringThresholds = {
-  [K in keyof typeof MODULE_CONFIG as (typeof MODULE_CONFIG)[K] extends { thresholds: Record<string, unknown> }
-    ? K
-    : never]: (typeof MODULE_CONFIG)[K] extends {
+  [K in keyof typeof MODULE_CONFIG as (typeof MODULE_CONFIG)[K] extends { thresholds: unknown } ? K : never]: (typeof MODULE_CONFIG)[K] extends {
     thresholds: infer T
   }
     ? T

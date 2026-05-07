@@ -41,8 +41,13 @@ describe("modules validation", () => {
     expect(res.statusCode).toBe(200)
   })
 
+  it("accepts the indexer health module", async () => {
+    const res = await inject({ modules: "indexer_health" })
+    expect(res.statusCode).toBe(200)
+  })
+
   it("accepts multiple valid modules (CSV)", async () => {
-    const res = await inject({ modules: "peg,overview,liquidations" })
+    const res = await inject({ modules: "peg,overview,liquidations,indexer_health" })
     expect(res.statusCode).toBe(200)
   })
 

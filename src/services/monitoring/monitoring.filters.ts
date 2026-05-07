@@ -64,6 +64,7 @@ export function resolveFiltersForModule(moduleName: MonitoringModuleName, parsed
 
   const VALID_FILTER_KEYS: Set<string> = new Set(["market_address", "borrower_address", "status", "offset", "limit", "sort_by", "period", "asset"])
   for (const [key, value] of Object.entries(overrides)) {
+    if (moduleName === "indexer_health") continue
     if (VALID_FILTER_KEYS.has(key)) {
       Object.assign(resolved, { [key]: value })
     }

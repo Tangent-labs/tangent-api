@@ -27,6 +27,12 @@ describe("parseMonitoringQuery", () => {
       expect(result.isSingleModule).toBe(true)
     })
 
+    it("selects the indexer health module", () => {
+      const result = parseMonitoringQuery({ modules: "indexer_health" })
+      expect(result.requestedModules).toEqual(["indexer_health"])
+      expect(result.isSingleModule).toBe(true)
+    })
+
     it("selects multiple modules via CSV", () => {
       const result = parseMonitoringQuery({ modules: "peg,overview,liquidations" })
       expect(result.requestedModules).toEqual(["peg", "overview", "liquidations"])
@@ -219,6 +225,24 @@ describe("resolveFiltersForModule", () => {
       expect(filters.market_address).toBeUndefined()
     })
 
+    it("does NOT apply global filters to indexer_health", () => {
+      const filters = resolveFiltersForModule(
+        "indexer_health",
+        makeParsed({
+          globalFilters: {
+            market_address: ADDR,
+            borrower_address: ADDR_2,
+            status: "critical",
+            asset: "USDC",
+          },
+        }),
+      )
+      expect(filters.market_address).toBeUndefined()
+      expect(filters.borrower_address).toBeUndefined()
+      expect(filters.status).toBeUndefined()
+      expect(filters.asset).toBeUndefined()
+    })
+
     it("applies asset to peg (which accepts it)", () => {
       const filters = resolveFiltersForModule(
         "peg",
@@ -268,6 +292,15 @@ describe("resolveFiltersForModule", () => {
     it("does NOT apply global offset/limit to non-paginated module (overview)", () => {
       const filters = resolveFiltersForModule(
         "overview",
+        makeParsed({ globalFilters: { offset: "20", limit: "5" } }),
+      )
+      expect(filters.offset).toBe(0)
+      expect(filters.limit).toBe(10)
+    })
+
+    it("does NOT apply global offset/limit to indexer_health", () => {
+      const filters = resolveFiltersForModule(
+        "indexer_health",
         makeParsed({ globalFilters: { offset: "20", limit: "5" } }),
       )
       expect(filters.offset).toBe(0)
@@ -338,6 +371,21 @@ describe("resolveFiltersForModule", () => {
         }),
       )
       expect(filters.period).toBe("7d")
+    })
+
+    it("ignores indexer_health per-module overrides", () => {
+      const filters = resolveFiltersForModule(
+        "indexer_health",
+        makeParsed({
+          perModuleOverrides: {
+            indexer_health: { status: "critical", offset: "20", limit: "5", asset: "USDC" },
+          },
+        }),
+      )
+      expect(filters.status).toBeUndefined()
+      expect(filters.asset).toBeUndefined()
+      expect(filters.offset).toBe(0)
+      expect(filters.limit).toBe(10)
     })
   })
 

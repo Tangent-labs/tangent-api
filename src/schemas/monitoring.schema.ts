@@ -1,4 +1,5 @@
 import { RouteShorthandOptions } from "fastify"
+import { ALL_MODULES } from "../services/monitoring/monitoring.types.js"
 
 // ---------------------------------------------------------------------------
 // Shared fragments
@@ -186,6 +187,26 @@ const ltvDistributionItem = {
   },
 } as const
 
+const indexerHealthItem = {
+  type: "object",
+  properties: {
+    indexer_name: { type: "string" },
+    enabled: { type: "boolean" },
+    latest_status: { type: ["string", "null"], enum: ["SUCCESS", "FAILED", null] },
+    latest_finished_at: { type: ["string", "null"], format: "date-time" },
+    exec_1h: { type: "integer" },
+    failure_1h: { type: "integer" },
+    exec_12h: { type: "integer" },
+    failure_12h: { type: "integer" },
+    exec_24h: { type: "integer" },
+    failure_24h: { type: "integer" },
+    fail_streak_count: { type: "integer" },
+    status_stale: { type: "string", enum: ["unknown", "ok", "warning", "critical"] },
+    status_failure_accumulation: { type: "string", enum: ["ok", "warning", "critical"] },
+    sli: { type: "number" },
+  },
+} as const
+
 function paginatedResult(itemSchema: Record<string, unknown>) {
   return {
     type: "object",
@@ -202,19 +223,14 @@ function paginatedResult(itemSchema: Record<string, unknown>) {
 
 const moduleNameEnum = {
   type: "string",
-  enum: [
-    "overview",
-    "collateralization",
-    "liquidation_distance",
-    "peg",
-    "price_variation",
-    "oracle_sanity",
-    "debt_utilization",
-    "tvl_variation",
-    "liquidations",
-    "ltv_distribution",
-  ],
+  enum: [...ALL_MODULES],
 } as const
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+const moduleNamePattern = ALL_MODULES.map(escapeRegex).join("|")
 
 // ---------------------------------------------------------------------------
 // GET /monitoring
@@ -228,8 +244,7 @@ export const monitoringSchema: RouteShorthandOptions = {
         modules: {
           type: "string",
           description: "CSV of module names or 'all'",
-          pattern:
-            "^(all|((overview|collateralization|liquidation_distance|peg|price_variation|oracle_sanity|debt_utilization|tvl_variation|liquidations|ltv_distribution)(,(overview|collateralization|liquidation_distance|peg|price_variation|oracle_sanity|debt_utilization|tvl_variation|liquidations|ltv_distribution))*))$",
+          pattern: `^(all|((${moduleNamePattern})(,(${moduleNamePattern}))*))$`,
         },
         market_address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
         borrower_address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
@@ -264,6 +279,7 @@ export const monitoringSchema: RouteShorthandOptions = {
               tvl_variation: { type: "string", format: "date-time" },
               liquidations: { type: "string", format: "date-time" },
               ltv_distribution: { type: "string", format: "date-time" },
+              indexer_health: { type: "string", format: "date-time" },
             },
           },
           modules: {
@@ -280,6 +296,7 @@ export const monitoringSchema: RouteShorthandOptions = {
               tvl_variation: { type: "array", items: tvlVariationItem },
               liquidations: liquidationsModuleData,
               ltv_distribution: { type: "array", items: ltvDistributionItem },
+              indexer_health: { type: "array", items: indexerHealthItem },
             },
             additionalProperties: false,
           },
@@ -386,8 +403,37 @@ export const thresholdsGetSchema: RouteShorthandOptions = {
               danger_24h_pct: { type: "number" },
             },
           },
+          indexer_health: {
+            type: "object",
+            properties: {
+              warning_after_minutes: { type: "number" },
+              critical_after_minutes: { type: "number" },
+              max_consecutive_failures: { type: "number" },
+              indexers: {
+                type: "object",
+                additionalProperties: {
+                  type: "object",
+                  properties: {
+                    enabled: { type: "boolean" },
+                    warning_after_minutes: { type: "number" },
+                    critical_after_minutes: { type: "number" },
+                    max_consecutive_failures: { type: "number" },
+                  },
+                },
+              },
+            },
+          },
         },
-        required: ["collateralization", "liquidation_distance", "peg", "price_variation", "oracle_sanity", "debt_utilization", "tvl_variation"],
+        required: [
+          "collateralization",
+          "liquidation_distance",
+          "peg",
+          "price_variation",
+          "oracle_sanity",
+          "debt_utilization",
+          "tvl_variation",
+          "indexer_health",
+        ],
       },
     },
   },

@@ -7,6 +7,9 @@ import {
   computeOracleSanityStatus,
   computeDebtUtilizationStatus,
   computeTvlVariationStatus,
+  computeIndexerStaleStatus,
+  computeIndexerFailureAccumulationStatus,
+  computeIndexerHealthSli,
 } from "./monitoring/monitoring.status.js"
 import {
   MonitoringModuleName,
@@ -25,6 +28,8 @@ import {
   PaginatedResult,
   LtvBucket,
   MonitoringModuleDataMap,
+  IndexerHealthItem,
+  INDEXER_HEALTH_THRESHOLDS,
 } from "./monitoring/monitoring.types.js"
 
 interface CachedEntry<T> {
@@ -88,6 +93,7 @@ export class MonitoringService {
       tvl_variation: () => this.getTvlVariation(parsed),
       liquidations: () => this.getLiquidations(parsed),
       ltv_distribution: () => this.getLtvDistribution(parsed),
+      indexer_health: () => this.getIndexerHealth(parsed),
     }
 
     for (const moduleName of parsed.requestedModules) {
@@ -407,5 +413,37 @@ export class MonitoringService {
     }
 
     return Array.from(marketMap.values())
+  }
+
+  private async getIndexerHealth(parsed: ParsedMonitoringQuery): Promise<IndexerHealthItem[]> {
+    resolveFiltersForModule("indexer_health", parsed)
+
+    const indexerEntries = Object.entries(INDEXER_HEALTH_THRESHOLDS.indexers).filter(([, config]) => config.enabled)
+    const rows = await this.repo.getIndexerHealthRows(indexerEntries.map(([indexerName]) => indexerName))
+    const rowsByIndexer = new Map(rows.map((row) => [row.indexer_name, row]))
+    const now = new Date()
+
+    return indexerEntries.map(([indexerName, config]) => {
+      const row = rowsByIndexer.get(indexerName)
+      const latestSuccessFinishedAt = row?.latest_success_finished_at ?? null
+      const failStreakCount = Number(row?.fail_streak_count ?? 0)
+
+      return {
+        indexer_name: indexerName,
+        enabled: config.enabled,
+        latest_status: row?.latest_status ?? null,
+        latest_finished_at: row?.latest_finished_at ? row.latest_finished_at.toISOString() : null,
+        exec_1h: Number(row?.exec_1h ?? 0),
+        failure_1h: Number(row?.failure_1h ?? 0),
+        exec_12h: Number(row?.exec_12h ?? 0),
+        failure_12h: Number(row?.failure_12h ?? 0),
+        exec_24h: Number(row?.exec_24h ?? 0),
+        failure_24h: Number(row?.failure_24h ?? 0),
+        fail_streak_count: failStreakCount,
+        status_stale: computeIndexerStaleStatus(latestSuccessFinishedAt, now, config),
+        status_failure_accumulation: computeIndexerFailureAccumulationStatus(failStreakCount, config),
+        sli: computeIndexerHealthSli(latestSuccessFinishedAt, failStreakCount, now, config),
+      }
+    })
   }
 }
