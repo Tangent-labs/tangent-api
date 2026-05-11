@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client"
-import { GodsonsLeaderboardItem, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 import { AddressLike } from "ethers"
+import { GodsonsLeaderboardItem, UserPointsRow, UserTaskRow, UserVoteTaskRow } from "../types.js"
 
 export class PointsRepository {
   prismaClient: PrismaClient
@@ -251,7 +251,7 @@ export class PointsRepository {
     let status = false
 
     rows.forEach((r) => {
-      if (r.description.includes("debt on")) {
+      if (r.description.includes("Debt on")) {
         if (r.points !== 0n) {
           totalDebtPoints += r.points
           status = true
@@ -272,7 +272,7 @@ export class PointsRepository {
         points: totalDebtPoints,
         canZap: false,
       },
-      ...rows.filter((r) => !r.description.includes("debt on")),
+      ...rows.filter((r) => !r.description.includes("Debt on")),
     ]
 
     return finalTasks
