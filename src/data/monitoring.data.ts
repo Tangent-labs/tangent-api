@@ -550,28 +550,35 @@ export class MonitoringRepository {
       ),
       latest AS (
         SELECT
-          iel.indexer_name,
+          si.indexer_name,
           iel.status::text AS latest_status,
-          iel.finished_at AS latest_finished_at,
-          ROW_NUMBER() OVER (
-            PARTITION BY iel.indexer_name
-            ORDER BY iel.finished_at DESC NULLS LAST, iel.started_at DESC NULLS LAST
-          ) AS rn
-        FROM "global"."indexer_execution_log" iel
-        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
+          iel.finished_at AS latest_finished_at
+        FROM selected_indexers si
+        LEFT JOIN LATERAL (
+          SELECT status, finished_at
+          FROM "global"."indexer_execution_log"
+          WHERE indexer_name = si.indexer_name
+          ORDER BY finished_at DESC NULLS LAST, started_at DESC NULLS LAST
+          LIMIT 1
+        ) iel ON true
       ),
       latest_success AS (
         SELECT
-          iel.indexer_name,
-          MAX(iel.finished_at) AS latest_success_finished_at
-        FROM "global"."indexer_execution_log" iel
-        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
-        WHERE iel.status = 'SUCCESS'::"global"."IndexerExecutionStatus"
-        GROUP BY iel.indexer_name
+          si.indexer_name,
+          iel.finished_at AS latest_success_finished_at
+        FROM selected_indexers si
+        LEFT JOIN LATERAL (
+          SELECT finished_at
+          FROM "global"."indexer_execution_log"
+          WHERE indexer_name = si.indexer_name
+            AND status = 'SUCCESS'::"global"."IndexerExecutionStatus"
+          ORDER BY finished_at DESC NULLS LAST
+          LIMIT 1
+        ) iel ON true
       ),
       counters AS (
         SELECT
-          iel.indexer_name,
+          si.indexer_name,
           COUNT(*) FILTER (WHERE iel.finished_at >= NOW() - INTERVAL '1 hour')::bigint AS exec_1h,
           COUNT(*) FILTER (
             WHERE iel.finished_at >= NOW() - INTERVAL '1 hour'
@@ -587,20 +594,26 @@ export class MonitoringRepository {
             WHERE iel.finished_at >= NOW() - INTERVAL '24 hours'
               AND iel.status = 'FAILED'::"global"."IndexerExecutionStatus"
           )::bigint AS failure_24h
-        FROM "global"."indexer_execution_log" iel
-        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
-        GROUP BY iel.indexer_name
+        FROM selected_indexers si
+        LEFT JOIN "global"."indexer_execution_log" iel
+          ON iel.indexer_name = si.indexer_name
+         AND iel.finished_at >= NOW() - INTERVAL '24 hours'
+        GROUP BY si.indexer_name
       ),
       failure_streak AS (
         SELECT
-          iel.indexer_name,
-          COUNT(*) FILTER (WHERE iel.status = 'FAILED'::"global"."IndexerExecutionStatus")::bigint AS fail_streak_count
-        FROM "global"."indexer_execution_log" iel
-        JOIN selected_indexers si ON si.indexer_name = iel.indexer_name
-        LEFT JOIN latest_success ls ON ls.indexer_name = iel.indexer_name
-        WHERE ls.latest_success_finished_at IS NULL
-          OR iel.finished_at > ls.latest_success_finished_at
-        GROUP BY iel.indexer_name
+          si.indexer_name,
+          COUNT(iel.*)::bigint AS fail_streak_count
+        FROM selected_indexers si
+        LEFT JOIN latest_success ls ON ls.indexer_name = si.indexer_name
+        LEFT JOIN "global"."indexer_execution_log" iel
+          ON iel.indexer_name = si.indexer_name
+         AND iel.status = 'FAILED'::"global"."IndexerExecutionStatus"
+         AND (
+           ls.latest_success_finished_at IS NULL
+           OR iel.finished_at > ls.latest_success_finished_at
+         )
+        GROUP BY si.indexer_name
       )
       SELECT
         si.indexer_name,
@@ -615,7 +628,7 @@ export class MonitoringRepository {
         COALESCE(c.failure_24h, 0)::bigint AS failure_24h,
         COALESCE(fs.fail_streak_count, 0)::bigint AS fail_streak_count
       FROM selected_indexers si
-      LEFT JOIN latest l ON l.indexer_name = si.indexer_name AND l.rn = 1
+      LEFT JOIN latest l ON l.indexer_name = si.indexer_name
       LEFT JOIN latest_success ls ON ls.indexer_name = si.indexer_name
       LEFT JOIN counters c ON c.indexer_name = si.indexer_name
       LEFT JOIN failure_streak fs ON fs.indexer_name = si.indexer_name
