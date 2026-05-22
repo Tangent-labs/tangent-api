@@ -63,7 +63,10 @@ export class PredepositRepository {
       })
       // Insert the new line
       await tx.predeposit_users.create({
-        data: entry,
+        data: {
+          ...entry,
+          signature_date: new Date()
+        },
       })
     })
   }
