@@ -272,7 +272,7 @@ export class PointsRepository {
         points: totalDebtPoints,
         canZap: false,
       },
-      ...rows.filter((r) => !r.description.includes("Debt on")),
+      ...rows.filter((r) => !r.description.includes("debt on")),
     ]
 
     return finalTasks
