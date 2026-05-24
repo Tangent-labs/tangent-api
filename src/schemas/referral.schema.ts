@@ -13,7 +13,7 @@ export const referralSchema: RouteShorthandOptions = {
           maxLength: 16,
           pattern: "^[a-zA-Z0-9]+$",
         },
-        signature: { type: "string", pattern: "^0x[a-fA-F0-9]{130}$" },
+        signature: { type: "string", pattern: "^0x[a-fA-F0-9]+$" },
         account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
         now: { type: "string", format: "date-time" },
       },
