@@ -54,7 +54,7 @@ export const signPredepositSchema: RouteShorthandOptions = {
       type: "object",
       required: ["signature", "account", "now"],
       properties: {
-        signature: { type: "string", pattern: "^0x[a-fA-F0-9]$" },
+        signature: { type: "string", pattern: "^0x[a-fA-F0-9]+$" },
         account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
         now: { type: "string", format: "date-time" },
       },
