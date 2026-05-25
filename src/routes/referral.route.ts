@@ -2,7 +2,7 @@ import { ReferralInput } from "../types.js"
 import { FastifyInstance, FastifyRequest } from "fastify"
 import { ReferralService } from "../services/referral.service.js"
 import { generateReferralSchema, referralSchema, referralStatusSchema } from "../schemas/referral.schema.js"
-import { toError } from "../utils.js"
+import { toError, UserError } from "../utils.js"
 import { secretTokenPreHandler } from "../middleware/auth.js"
 
 interface ReferralRoute {
@@ -30,7 +30,7 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
     } catch (err) {
       request.log.error({ msg: "Error processing referral:", err })
       const errTyped = toError(err)
-      return reply.status(errTyped.message.includes("Invalid") || errTyped.message.includes("already") ? 400 : 500).send({ error: errTyped.message })
+      return reply.status(err instanceof UserError ? 400 : 500).send({ error: errTyped.message })
     }
   })
 

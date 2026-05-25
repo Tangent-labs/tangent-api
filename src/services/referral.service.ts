@@ -1,6 +1,7 @@
 import { ethers } from "ethers"
 import { ReferralInput, UserStatus } from "../types.js"
 import { ReferralRepository } from "../data/referral.data.js"
+import { UserError } from "../utils.js"
 import { FastifyBaseLogger } from "fastify"
 
 export class ReferralService {
@@ -15,24 +16,26 @@ export class ReferralService {
 
     const referrer = await this.referralRepo.getReferralByCode(referralCode)
     if (!referrer) {
-      throw new Error("Invalid referral code")
+      throw new UserError("Invalid referral code")
     }
 
     if (await this.referralRepo.isUserOnboarded(account.toLowerCase())) {
-      throw new Error("User has already used a referral code")
+      throw new UserError("User has already used a referral code")
     }
 
-    const message = `I am using the following referral code ${referralCode}`
+    const message = `By signing this message, I'm enrolling in the Tangent referral program using code: ${referralCode}
+
+This signature is free and does not authorize any transaction.`
     let recoveredAddress: string
     try {
       recoveredAddress = ethers.verifyMessage(message, signature)
     } catch (err) {
       logger.error({ msg: "Signature verification failed:", err })
-      throw new Error("Invalid signature", { cause: err })
+      throw new UserError("Invalid signature")
     }
 
     if (recoveredAddress.toLowerCase() !== account.toLowerCase()) {
-      throw new Error("Signature does not match account")
+      throw new UserError("Signature does not match account")
     }
 
     await this.referralRepo.processReferral(referralCode, account, now)
@@ -43,7 +46,7 @@ export class ReferralService {
 
   checkAccount = (account: string) => {
     if (!ethers.isAddress(account)) {
-      throw new Error("Invalid account address")
+      throw new UserError("Invalid account address")
     }
   }
 
