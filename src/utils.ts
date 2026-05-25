@@ -1,3 +1,5 @@
+export class UserError extends Error {}
+
 export function toError(err: unknown): Error & { statusCode?: number } {
   if (err instanceof Error) return err as Error & { statusCode?: number }
   return new Error(String(err))
