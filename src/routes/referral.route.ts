@@ -3,6 +3,7 @@ import { FastifyInstance, FastifyRequest } from "fastify"
 import { ReferralService } from "../services/referral.service.js"
 import { generateReferralSchema, referralSchema, referralStatusSchema } from "../schemas/referral.schema.js"
 import { toError } from "../utils.js"
+import { secretTokenPreHandler } from "../middleware/auth.js"
 
 interface ReferralRoute {
   Body: ReferralInput
@@ -33,19 +34,23 @@ export async function registerReferralRoute(fastify: FastifyInstance, opts: { re
     }
   })
 
-  fastify.post<GenerateReferralRoute>("/referral/generate", generateReferralSchema, async (request: FastifyRequest<GenerateReferralRoute>, reply) => {
-    try {
-      const { account } = request.body
-      const result = await opts.referralService.generateNewReferralCode(account, fastify.log)
-      return reply.status(200).send(result)
-    } catch (err) {
-      request.log.error({ msg: "Error generating referral code:", err })
-      const errTyped = toError(err)
-      return reply
-        .status(errTyped.message.includes("Invalid") || errTyped.message.includes("already") ? 400 : 500)
-        .send({ error: errTyped.message || "Failed to generate referral code" })
+  fastify.post<GenerateReferralRoute>(
+    "/referral/generate",
+    { ...generateReferralSchema, preHandler: secretTokenPreHandler },
+    async (request: FastifyRequest<GenerateReferralRoute>, reply) => {
+      try {
+        const { account } = request.body
+        const result = await opts.referralService.generateNewReferralCode(account, fastify.log)
+        return reply.status(200).send(result)
+      } catch (err) {
+        request.log.error({ msg: "Error generating referral code:", err })
+        const errTyped = toError(err)
+        return reply
+          .status(errTyped.message.includes("Invalid") || errTyped.message.includes("already") ? 400 : 500)
+          .send({ error: errTyped.message || "Failed to generate referral code" })
+      }
     }
-  })
+  )
 
   fastify.get<ReferralStatusRoute>("/referral/status", referralStatusSchema, async (request: FastifyRequest<ReferralStatusRoute>, reply) => {
     try {
