@@ -9,6 +9,7 @@ interface OverviewRow {
 interface CollateralizationRow {
   borrower_address: string
   market_name: string
+  market_address: string
   collateral_value: number
   debt: number
   liquidation_threshold: number
@@ -22,6 +23,7 @@ interface CollateralizationRow {
 interface LiquidationDistanceRow {
   borrower_address: string
   market_name: string
+  market_address: string
   collateral_value: number
   debt: number
   liquidation_price: number
@@ -96,6 +98,7 @@ interface LiquidationSummaryRow {
 
 interface LtvDistributionRow {
   market_name: string
+  market_address: string
   max_ltv: number
   bucket: string
   count: bigint
@@ -129,7 +132,7 @@ export class MonitoringRepository {
     this.prismaClient = prisma
   }
 
-  async getOverviewPositions(warningMultiplier: number): Promise<OverviewRow> {
+  async getOverviewPositions(warningMultiplier: number, liqdistWarningPct: number): Promise<OverviewRow> {
     const rows = await this.prismaClient.$queryRaw<OverviewRow[]>`
       WITH latest_positions AS (
         SELECT ps.*, ROW_NUMBER() OVER (
@@ -141,14 +144,18 @@ export class MonitoringRepository {
       ),
       active AS (
         SELECT * FROM latest_positions WHERE rn = 1
+      ),
+      at_risk AS (
+        SELECT a.borrower_address FROM active a
+        JOIN global.market_config mc ON mc.market_id = a.market_id
+        WHERE a.cr < mc.liquidation_threshold * ${warningMultiplier}
+        UNION
+        SELECT a.borrower_address FROM active a
+        WHERE a.distance_pct < ${liqdistWarningPct}
       )
       SELECT
-        COUNT(*)::bigint AS active_positions,
-        COUNT(*) FILTER (
-          WHERE a.cr < mc.liquidation_threshold * ${warningMultiplier}
-        )::bigint AS at_risk_positions
-      FROM active a
-      JOIN global.market_config mc ON mc.market_id = a.market_id
+        (SELECT COUNT(*)::bigint FROM active) AS active_positions,
+        (SELECT COUNT(*)::bigint FROM at_risk) AS at_risk_positions
     `
     return rows[0] || { active_positions: BigInt(0), at_risk_positions: BigInt(0) }
   }
@@ -198,6 +205,7 @@ export class MonitoringRepository {
         SELECT
           lp.borrower_address,
           um.contract_name AS market_name,
+          um.contract_address AS market_address,
           lp.position_value_usd AS collateral_value,
           lp.user_debt AS debt,
           mc.liquidation_threshold,
@@ -260,6 +268,7 @@ export class MonitoringRepository {
         SELECT
           lp.borrower_address,
           um.contract_name AS market_name,
+          um.contract_address AS market_address,
           lp.position_value_usd AS collateral_value,
           lp.user_debt AS debt,
           lp.liquidation_price,
@@ -512,6 +521,7 @@ export class MonitoringRepository {
       bucketed AS (
         SELECT
           um.contract_name AS market_name,
+          um.contract_address AS market_address,
           mc.max_ltv,
           wl.ltv_pct,
           wl.position_value_usd,
@@ -530,13 +540,14 @@ export class MonitoringRepository {
       )
       SELECT
         market_name,
+        market_address,
         max_ltv,
         bucket,
         COUNT(*)::bigint AS count,
         COALESCE(SUM(position_value_usd), 0) AS tvl,
         COALESCE(SUM(CASE WHEN bucket = '100_plus' THEN user_debt - position_value_usd ELSE 0 END), 0) AS bad_debt
       FROM bucketed
-      GROUP BY market_name, max_ltv, bucket
+      GROUP BY market_name, market_address, max_ltv, bucket
       ORDER BY market_name, bucket
     `
   }

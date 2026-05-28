@@ -31,7 +31,7 @@ const overviewData = {
     active_positions: { type: "integer" },
     at_risk_positions: { type: "integer" },
     indexed_block: { type: "integer" },
-    onchain_block: { type: "integer" },
+    onchain_block: { type: ["integer", "null"] },
     indexer_delay_seconds: { type: "number" },
   },
 } as const
@@ -41,6 +41,7 @@ const collateralizationItem = {
   properties: {
     borrower_address: { type: "string" },
     market_name: { type: "string" },
+    market_address: { type: "string" },
     collateral_value: { type: "number" },
     debt: { type: "number" },
     liquidation_threshold: { type: "number" },
@@ -56,6 +57,7 @@ const liquidationDistanceItem = {
   properties: {
     borrower_address: { type: "string" },
     market_name: { type: "string" },
+    market_address: { type: "string" },
     collateral_value: { type: "number" },
     debt: { type: "number" },
     liquidation_price: { type: "number" },
@@ -95,6 +97,7 @@ const oracleSanityItem = {
   type: "object",
   properties: {
     market_name: { type: "string" },
+    market_address: { type: "string" },
     oracle_price: { type: "number" },
     offchain_price: { type: "number" },
     deviation_pct: { type: "number" },
@@ -107,6 +110,7 @@ const debtUtilizationItem = {
   type: "object",
   properties: {
     market_name: { type: "string" },
+    market_address: { type: "string" },
     total_borrow: { type: "number" },
     max_debt: { type: "number" },
     utilization_pct: { type: "number" },
@@ -118,6 +122,7 @@ const tvlVariationItem = {
   type: "object",
   properties: {
     market_name: { type: "string" },
+    market_address: { type: "string" },
     tvl_current: { type: "number" },
     delta_1h_pct: { type: "number" },
     delta_24h_pct: { type: "number" },
@@ -170,6 +175,7 @@ const ltvDistributionItem = {
   type: "object",
   properties: {
     market_name: { type: "string" },
+    market_address: { type: "string" },
     max_ltv: { type: "number" },
     buckets: {
       type: "object",
@@ -213,6 +219,7 @@ function paginatedResult(itemSchema: Record<string, unknown>) {
     properties: {
       data: { type: "array", items: itemSchema },
       pagination: paginationMeta,
+      total_count: { type: "integer" },
     },
   }
 }

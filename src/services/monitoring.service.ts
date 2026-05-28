@@ -2,6 +2,7 @@ import { MonitoringRepository, BlockRow } from "../data/monitoring.data.js"
 import { ParsedMonitoringQuery, resolveFiltersForModule } from "./monitoring/monitoring.filters.js"
 import { getThresholds } from "./monitoring/monitoring.thresholds.js"
 import {
+  computeLiquidationDistanceStatus,
   computePegStatus,
   computePriceVariationStatus,
   computeOracleSanityStatus,
@@ -51,8 +52,8 @@ export class MonitoringService {
     this.rpcUrl = process.env.RPC_URL || ""
   }
 
-  private async fetchOnchainBlock(): Promise<{ blockNumber: number; blockTimestamp: number }> {
-    if (!this.rpcUrl) return { blockNumber: 0, blockTimestamp: 0 }
+  private async fetchOnchainBlock(): Promise<{ blockNumber: number | null; blockTimestamp: number }> {
+    if (!this.rpcUrl) return { blockNumber: null, blockTimestamp: 0 }
     try {
       const numRes = await fetch(this.rpcUrl, {
         method: "POST",
@@ -72,7 +73,7 @@ export class MonitoringService {
 
       return { blockNumber, blockTimestamp }
     } catch {
-      return { blockNumber: 0, blockTimestamp: 0 }
+      return { blockNumber: null, blockTimestamp: 0 }
     }
   }
 
@@ -130,9 +131,9 @@ export class MonitoringService {
     }
   }
 
-  private async getOverview(blockRow: BlockRow | null, onchainBlock: { blockNumber: number; blockTimestamp: number }): Promise<OverviewData> {
+  private async getOverview(blockRow: BlockRow | null, onchainBlock: { blockNumber: number | null; blockTimestamp: number }): Promise<OverviewData> {
     const thresholds = getThresholds()
-    const positions = await this.repo.getOverviewPositions(thresholds.collateralization.warning_multiplier)
+    const positions = await this.repo.getOverviewPositions(thresholds.collateralization.warning_multiplier, thresholds.liquidation_distance.warning_pct)
 
     const indexedBlock = blockRow ? Number(blockRow.block_id) : 0
     let indexerDelaySeconds = 0
@@ -161,6 +162,7 @@ export class MonitoringService {
       data: rows.map((r) => ({
         borrower_address: r.borrower_address,
         market_name: r.market_name,
+        market_address: r.market_address,
         collateral_value: r.collateral_value,
         debt: r.debt,
         liquidation_threshold: r.liquidation_threshold,
@@ -175,6 +177,7 @@ export class MonitoringService {
         total,
         has_more: filters.offset + filters.limit < total,
       },
+      total_count: total,
     }
   }
 
@@ -188,12 +191,13 @@ export class MonitoringService {
       data: rows.map((r) => ({
         borrower_address: r.borrower_address,
         market_name: r.market_name,
+        market_address: r.market_address,
         collateral_value: r.collateral_value,
         debt: r.debt,
         liquidation_price: r.liquidation_price,
         current_price: r.current_price,
         distance_pct: r.distance_pct,
-        status: r.status as LiquidationDistanceItem["status"],
+        status: computeLiquidationDistanceStatus(r.distance_pct, t) as LiquidationDistanceItem["status"],
       })),
       pagination: {
         offset: filters.offset,
@@ -201,6 +205,7 @@ export class MonitoringService {
         total,
         has_more: filters.offset + filters.limit < total,
       },
+      total_count: total,
     }
   }
 
@@ -273,6 +278,7 @@ export class MonitoringService {
       const ageSeconds = onchainBlockTimestamp > 0 ? Math.max(0, onchainBlockTimestamp - snapshotEpoch) : 0
       return {
         market_name: r.market_name,
+        market_address: r.market_address,
         oracle_price: r.oracle_price,
         offchain_price: r.offchain_price,
         deviation_pct: r.deviation_pct,
@@ -297,6 +303,7 @@ export class MonitoringService {
 
     const items: DebtUtilizationItem[] = rows.map((r) => ({
       market_name: r.market_name,
+      market_address: r.market_address,
       total_borrow: r.total_debt,
       max_debt: r.max_debt,
       utilization_pct: r.utilization_pct,
@@ -315,6 +322,7 @@ export class MonitoringService {
 
     const items: TvlVariationItem[] = rows.map((r) => ({
       market_name: r.market_name,
+      market_address: r.market_address,
       tvl_current: r.tvl_current,
       delta_1h_pct: r.delta_1h_pct,
       delta_24h_pct: r.delta_24h_pct,
@@ -379,6 +387,7 @@ export class MonitoringService {
       if (!marketMap.has(row.market_name)) {
         marketMap.set(row.market_name, {
           market_name: row.market_name,
+          market_address: row.market_address,
           max_ltv: row.max_ltv,
           buckets: {
             "0_50": { count: 0, tvl: 0 },

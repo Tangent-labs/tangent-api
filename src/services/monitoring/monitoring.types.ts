@@ -126,10 +126,10 @@ export const MODULE_CONFIG = {
     filters: ["market_address", "borrower_address", "status"],
     paginated: true,
     thresholds: {
-      safe_pct: envFloat("MONITORING_LIQDIST_SAFE_PCT", 5.0),
-      warning_pct: envFloat("MONITORING_LIQDIST_WARNING_PCT", 2.0),
-      danger_pct: envFloat("MONITORING_LIQDIST_DANGER_PCT", 1.0),
-      critical_pct: envFloat("MONITORING_LIQDIST_CRITICAL_PCT", 0.5),
+      safe_pct: envFloat("MONITORING_LIQDIST_SAFE_PCT", 1.0),
+      warning_pct: envFloat("MONITORING_LIQDIST_WARNING_PCT", 0.4),
+      danger_pct: envFloat("MONITORING_LIQDIST_DANGER_PCT", 0.2),
+      critical_pct: envFloat("MONITORING_LIQDIST_CRITICAL_PCT", 0.1),
     },
   },
   peg: {
@@ -220,19 +220,21 @@ export interface PaginationMeta {
 export interface PaginatedResult<T> {
   data: T[]
   pagination: PaginationMeta
+  total_count: number
 }
 
 export interface OverviewData {
   active_positions: number
   at_risk_positions: number
   indexed_block: number
-  onchain_block: number
+  onchain_block: number | null
   indexer_delay_seconds: number
 }
 
 export interface CollateralizationItem {
   borrower_address: string
   market_name: string
+  market_address: string
   collateral_value: number
   debt: number
   liquidation_threshold: number
@@ -245,6 +247,7 @@ export interface CollateralizationItem {
 export interface LiquidationDistanceItem {
   borrower_address: string
   market_name: string
+  market_address: string
   collateral_value: number
   debt: number
   liquidation_price: number
@@ -276,6 +279,7 @@ export interface PriceVariationItem {
 
 export interface OracleSanityItem {
   market_name: string
+  market_address: string
   oracle_price: number
   offchain_price: number
   deviation_pct: number
@@ -285,6 +289,7 @@ export interface OracleSanityItem {
 
 export interface DebtUtilizationItem {
   market_name: string
+  market_address: string
   total_borrow: number
   max_debt: number
   utilization_pct: number
@@ -293,6 +298,7 @@ export interface DebtUtilizationItem {
 
 export interface TvlVariationItem {
   market_name: string
+  market_address: string
   tvl_current: number
   delta_1h_pct: number
   delta_24h_pct: number
@@ -331,6 +337,7 @@ export interface LtvBucket {
 
 export interface LtvDistributionItem {
   market_name: string
+  market_address: string
   max_ltv: number
   buckets: {
     "0_50": LtvBucket
