@@ -202,6 +202,11 @@ describe("computeDebtUtilizationStatus", () => {
 describe("computeTvlVariationStatus", () => {
   const t = { warning_1h_pct: -10.0, danger_1h_pct: -15.0, warning_24h_pct: -20.0, danger_24h_pct: -30.0 }
 
+  it("returns ok when both deltas are positive (TVL increase)", () => {
+    expect(computeTvlVariationStatus(37.0, 50.0, t)).toBe("ok")
+    expect(computeTvlVariationStatus(5.0, 10.0, t)).toBe("ok")
+  })
+
   it("returns ok when deltas are small", () => {
     expect(computeTvlVariationStatus(-5.0, -10.0, t)).toBe("ok")
   })

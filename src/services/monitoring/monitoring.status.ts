@@ -13,7 +13,7 @@ export function computeCollateralizationStatus(
 
 export function computeLiquidationDistanceStatus(
   distancePct: number,
-  t: MonitoringThresholds["liquidation_distance"]
+  t: { safe_pct: number; warning_pct: number; danger_pct: number }
 ): "safe" | "warning" | "danger" | "critical" {
   if (distancePct >= t.safe_pct) return "safe"
   if (distancePct >= t.warning_pct) return "warning"
@@ -83,15 +83,9 @@ export function computeDebtUtilizationStatus(utilizationPct: number, t: Monitori
 }
 
 export function computeTvlVariationStatus(delta1hPct: number, delta24hPct: number, t: MonitoringThresholds["tvl_variation"]): "ok" | "warning" | "danger" {
-  const absDelta1h = Math.abs(delta1hPct)
-  const absDelta24h = Math.abs(delta24hPct)
-  const dangerThreshold1h = Math.abs(t.danger_1h_pct)
-  const warningThreshold1h = Math.abs(t.warning_1h_pct)
-  const dangerThreshold24h = Math.abs(t.danger_24h_pct)
-  const warningThreshold24h = Math.abs(t.warning_24h_pct)
-
-  if (absDelta1h >= dangerThreshold1h || absDelta24h >= dangerThreshold24h) return "danger"
-  if (absDelta1h >= warningThreshold1h || absDelta24h >= warningThreshold24h) return "warning"
+  if (delta1hPct >= 0 && delta24hPct >= 0) return "ok"
+  if (delta1hPct < -Math.abs(t.danger_1h_pct) || delta24hPct < -Math.abs(t.danger_24h_pct)) return "danger"
+  if (delta1hPct < -Math.abs(t.warning_1h_pct) || delta24hPct < -Math.abs(t.warning_24h_pct)) return "warning"
   return "ok"
 }
 
