@@ -86,11 +86,21 @@ export interface UserPoints {
   }
 }
 
-export interface EventsRoute {
+export interface PositionsRoute {
   Params: {
-    account: string
-    market: string
+    marketAddress: string
   }
+  Querystring: {
+    pageSize?: string
+    offset?: string
+    userAddress?: string
+  }
+}
+
+export interface PositionsQuery {
+  pageSize: number
+  offset: number
+  userAddress?: string
 }
 
 export interface ReferralInput {

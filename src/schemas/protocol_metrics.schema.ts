@@ -307,29 +307,48 @@ export const getOracleMarketDataSchema: RouteShorthandOptions = {
   },
 }
 
-export const eventsSchema: RouteShorthandOptions = {
+export const positionsSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],
     params: {
       type: "object",
       properties: {
-        account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-        market: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
       },
-      required: ["account", "market"],
+      required: ["marketAddress"],
+    },
+    // Query params are kept as loose strings (no coercion) so invalid or missing
+    // values fall back to defaults in the service instead of 400-ing.
+    querystring: {
+      type: "object",
+      properties: {
+        pageSize: { type: "string", description: "Number of rows to return, max 100 (default 10)" },
+        offset: { type: "string", description: "0-based row offset (default 0)" },
+        userAddress: {
+          type: "string",
+          pattern: "^0x[a-fA-F0-9]{40}$",
+          description: "Optional. When present, return only this address's events; when absent, all users.",
+        },
+      },
     },
     response: {
       200: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            label: { type: "string" },
-            collatAmount: { type: "string" },
-            usgAmount: { type: "string" },
-            date: { type: "string", format: "date-time" },
-            txHash: { type: "string" },
+        type: "object",
+        properties: {
+          data: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                label: { type: "string" },
+                collatAmount: { type: "string" },
+                usgAmount: { type: "string" },
+                date: { type: "string", format: "date-time" },
+                txHash: { type: "string" },
+              },
+            },
           },
+          total: { type: "integer" },
         },
       },
       500: {
