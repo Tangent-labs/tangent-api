@@ -243,6 +243,7 @@ export class PointsRepository {
   INNER JOIN points.last_price_feeds AS lpf ON lpf.price_source_id = t.price_source_id
   LEFT JOIN  ut_open                        ON ut_open.task_id = t.id
   LEFT JOIN  up_sum                         ON up_sum.task_id  = t.id
+  WHERE t.end_date IS NULL
   ORDER BY t.id;
 `
 
