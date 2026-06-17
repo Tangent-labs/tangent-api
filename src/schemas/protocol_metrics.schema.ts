@@ -317,17 +317,14 @@ export const positionsSchema: RouteShorthandOptions = {
       },
       required: ["marketAddress"],
     },
-    // Query params are kept as loose strings (no coercion) so invalid or missing
-    // values fall back to defaults in the service instead of 400-ing.
     querystring: {
       type: "object",
       properties: {
-        pageSize: { type: "string", description: "Number of rows to return, max 100 (default 10)" },
-        offset: { type: "string", description: "0-based row offset (default 0)" },
+        pageSize: { type: "string" },
+        offset: { type: "string" },
         userAddress: {
           type: "string",
           pattern: "^0x[a-fA-F0-9]{40}$",
-          description: "Optional. When present, return only this address's events; when absent, all users.",
         },
       },
     },

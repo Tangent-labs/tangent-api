@@ -47,13 +47,10 @@ export class ProtocolMetricsRepository {
 
     const market_id = marketResult[0].id
 
-    // userAddress is optional: its presence is the only toggle between the
-    // single-user and all-users views. The fragment is parameterized (never raw),
-    // and reused identically across the count and data queries below.
+    // userAddress is optional
     const accountFilter = query.userAddress !== undefined ? Prisma.sql`AND account = ${query.userAddress}` : Prisma.sql``
 
-    // The UNION over all event tables, defined once and shared by both queries so
-    // the COUNT and the paged slice always describe the same sample.
+    // The UNION over all event tables.
     const allEvents = Prisma.sql`
         SELECT 'borrow' AS label, '0' AS collat_amount, borrowed_amount AS usg_amount, block_date::text AS date, tx_hash
         FROM events.borrow WHERE market_id = ${market_id} ${accountFilter}
@@ -98,21 +95,16 @@ export class ProtocolMetricsRepository {
         FROM events.self_liquidate WHERE market_id = ${market_id} ${accountFilter}
       `
 
-    // Separate COUNT so an offset beyond the sample still returns the correct
-    // total alongside an empty data slice (a windowed COUNT would vanish here).
-    const countResult = await this.prismaClient.$queryRaw<{ total: bigint }[]>`
-        SELECT COUNT(*) AS total FROM (${allEvents}) AS all_events
-      `
-    const total = countResult.length > 0 ? Number(countResult[0].total) : 0
-
-    // Stable, server-owned ordering: newest first, tx_hash as a deterministic
-    // tiebreaker so pagination is consistent across pages.
-    const rows = await this.prismaClient.$queryRaw<RawEvent[]>`
-        SELECT label, collat_amount, usg_amount, date, tx_hash
+    // Retrieve a page of events and the total number of matching events
+    const rows = await this.prismaClient.$queryRaw<(RawEvent & { total: bigint })[]>`
+        SELECT label, collat_amount, usg_amount, date, tx_hash,
+               COUNT(*) OVER() AS total
         FROM (${allEvents}) AS all_events
         ORDER BY date::timestamptz DESC, tx_hash ASC
         LIMIT ${query.pageSize} OFFSET ${query.offset}
       `
+
+    const total = rows.length > 0 ? Number(rows[0].total) : 0
 
     return { rows, total }
   }

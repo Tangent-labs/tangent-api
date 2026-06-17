@@ -100,10 +100,7 @@ export class ProtocolMetricsService {
     return await this.protocolMetricsRepo.getOraclePriceBuckets(market, startDate.toISOString(), endDate.toISOString(), bucketCount)
   }
 
-  async getPositions(
-    market: string,
-    query: PositionsRoute["Querystring"]
-  ): Promise<{ data: TransformedEvent[]; total: number }> {
+  async getPositions(market: string, query: PositionsRoute["Querystring"]): Promise<{ data: TransformedEvent[]; total: number }> {
     const MAX_PAGE_SIZE = 100
 
     const parsedPageSize = Number.parseInt(query.pageSize ?? "", 10)
@@ -112,8 +109,6 @@ export class ProtocolMetricsService {
     const parsedOffset = Number.parseInt(query.offset ?? "", 10)
     const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0
 
-    // userAddress is optional. Normalize to lowercase to match how accounts are
-    // stored; absence means "all users".
     const userAddress = query.userAddress ? query.userAddress.toLowerCase() : undefined
 
     const { rows, total } = await this.protocolMetricsRepo.getPositions(market, { pageSize, offset, userAddress })
