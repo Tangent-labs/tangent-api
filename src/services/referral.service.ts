@@ -4,11 +4,43 @@ import { ReferralRepository } from "../data/referral.data.js"
 import { UserError } from "../utils.js"
 import { FastifyBaseLogger } from "fastify"
 
+// EIP-1271: value returned by isValidSignature(bytes32,bytes) on success
+const EIP1271_MAGIC_VALUE = "0x1626ba7e"
+const ERC1271_ABI = ["function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)"]
+const RPC_URL = process.env.RPC_URL || "https://ethereum-rpc.publicnode.com/"
+
 export class ReferralService {
   referralRepo: ReferralRepository
+  private provider: ethers.JsonRpcProvider
 
   constructor(referralRepo: ReferralRepository) {
     this.referralRepo = referralRepo
+    this.provider = new ethers.JsonRpcProvider(RPC_URL)
+  }
+
+  // Verifies a personal_sign message against `account`, supporting both EOA
+  // wallets (ECDSA recovery) and smart-contract wallets like Gnosis Safe (EIP-1271).
+  private async isValidSignature(message: string, signature: string, account: string, logger: FastifyBaseLogger): Promise<boolean> {
+    // EOA path: recover the signer and compare.
+    try {
+      const recovered = ethers.verifyMessage(message, signature)
+      if (recovered.toLowerCase() === account.toLowerCase()) {
+        return true
+      }
+    } catch {
+      // Not a recoverable EOA signature (e.g. a Safe's 130-byte payload) — fall through.
+    }
+
+    // Smart-contract wallet path: ask the contract to validate the signature on-chain.
+    try {
+      const contract = new ethers.Contract(account, ERC1271_ABI, this.provider)
+      const hash = ethers.hashMessage(message)
+      const result = await contract.isValidSignature(hash, signature)
+      return result === EIP1271_MAGIC_VALUE
+    } catch (err) {
+      logger.error({ msg: "EIP-1271 signature verification failed:", err })
+      return false
+    }
   }
 
   async verifyAndCreateReferralRelationship(input: ReferralInput, logger: FastifyBaseLogger): Promise<{ message: string }> {
@@ -26,16 +58,9 @@ export class ReferralService {
     const message = `By signing this message, I'm enrolling in the Tangent referral program using code: ${referralCode}
 
 This signature is free and does not authorize any transaction.`
-    let recoveredAddress: string
-    try {
-      recoveredAddress = ethers.verifyMessage(message, signature)
-    } catch (err) {
-      logger.error({ msg: "Signature verification failed:", err })
+    const valid = await this.isValidSignature(message, signature, account, logger)
+    if (!valid) {
       throw new UserError("Invalid signature")
-    }
-
-    if (recoveredAddress.toLowerCase() !== account.toLowerCase()) {
-      throw new UserError("Signature does not match account")
     }
 
     await this.referralRepo.processReferral(referralCode, account, now)

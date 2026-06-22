@@ -19,6 +19,7 @@ import {
   priceHistorySchema,
   pricesSchema,
   savingAccountsApySchema,
+  activePositionsSchema,
   susgHistoricalDataSchema,
   eventsSchema,
   getMarketHistoricalMarketDataSchema,
@@ -93,6 +94,16 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch APRs" })
+    }
+  })
+
+  fastify.get("/active-positions", activePositionsSchema, async (request, reply) => {
+    try {
+      const positions = await opts.protocolMetricsService.getActiveBorrowPositions()
+      return reply.status(200).send(positions)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch active positions" })
     }
   })
 

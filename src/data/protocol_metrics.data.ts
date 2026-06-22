@@ -25,6 +25,13 @@ export type PriceSourceItem = {
   name: string
 }
 
+export type ActiveBorrowPosition = {
+  contractName: string
+  contractAddress: string
+  borrowerAddress: string
+  debtShares: string
+}
+
 export class ProtocolMetricsRepository {
   prismaClient: PrismaClient
 
@@ -455,6 +462,19 @@ export class ProtocolMetricsRepository {
       console.error("Database error in getSavingAccountsApy:", error)
       throw error
     }
+  }
+
+  async getActiveBorrowPositions(): Promise<ActiveBorrowPosition[]> {
+    return await this.prismaClient.$queryRaw<ActiveBorrowPosition[]>`
+      SELECT
+        um.contract_name    AS "contractName",
+        um.contract_address AS "contractAddress",
+        ab.borrower_address AS "borrowerAddress",
+        ab.debt_shares::text AS "debtShares"
+      FROM global.active_borrowers ab
+      INNER JOIN global.usg_markets um ON um.id = ab.market_id
+      ORDER BY ab.debt_shares DESC
+    `
   }
 
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
