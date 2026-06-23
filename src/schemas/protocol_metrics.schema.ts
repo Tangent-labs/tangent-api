@@ -27,6 +27,33 @@ export const aprsSchema: RouteShorthandOptions = {
   },
 }
 
+export const activePositionsSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            contractName: { type: "string" },
+            contractAddress: { type: "string" },
+            borrowerAddress: { type: "string" },
+            debtShares: { type: "string" },
+          },
+          required: ["contractName", "contractAddress", "borrowerAddress", "debtShares"],
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const savingAccountsApySchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

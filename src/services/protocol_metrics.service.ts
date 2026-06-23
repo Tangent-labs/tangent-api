@@ -241,4 +241,13 @@ export class ProtocolMetricsService {
       throw err
     }
   }
+
+  async getActiveBorrowPositions() {
+    try {
+      return await this.protocolMetricsRepo.getActiveBorrowPositions()
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
 }
