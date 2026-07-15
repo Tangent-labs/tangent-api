@@ -3,7 +3,7 @@ import { FastifyInstance, FastifyRequest } from "fastify"
 import { ProtocolMetricsService } from "../services/protocol_metrics.service.js"
 
 import {
-  EventsRoute,
+  PositionsRoute,
   GetHistoricalMarketDataRoute,
   GetOracleMarketDataRoute,
   PriceHistoryRoute,
@@ -21,7 +21,7 @@ import {
   savingAccountsApySchema,
   activePositionsSchema,
   susgHistoricalDataSchema,
-  eventsSchema,
+  positionsSchema,
   getMarketHistoricalMarketDataSchema,
   getOracleMarketDataSchema,
   tvlSchema,
@@ -146,17 +146,15 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     }
   })
 
-  fastify.get<EventsRoute>("/events/:account/:market", eventsSchema, async (request: FastifyRequest<EventsRoute>, reply) => {
+  fastify.get<PositionsRoute>("/positions/:marketAddress", positionsSchema, async (request: FastifyRequest<PositionsRoute>, reply) => {
     try {
-      const { account, market } = request.params
-      const rawEvents = await opts.protocolMetricsService.getEventsByAccount(account.toLowerCase(), market)
-
-      const transformedEvents = opts.protocolMetricsService.transformEvents(rawEvents)
-      fastify.log.info(`Query returned ${transformedEvents.length} rows for account ${account}: ${JSON.stringify(transformedEvents)}`)
-      return transformedEvents
+      const { marketAddress } = request.params
+      const result = await opts.protocolMetricsService.getPositions(marketAddress, request.query)
+      fastify.log.info(`Query returned ${result.data.length}/${result.total} positions for market ${marketAddress}`)
+      return result
     } catch (err) {
       fastify.log.error(err)
-      return reply.status(500).send({ error: "Failed to fetch events" })
+      return reply.status(500).send({ error: "Failed to fetch positions" })
     }
   })
 

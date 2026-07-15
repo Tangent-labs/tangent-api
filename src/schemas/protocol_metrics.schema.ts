@@ -334,29 +334,45 @@ export const getOracleMarketDataSchema: RouteShorthandOptions = {
   },
 }
 
-export const eventsSchema: RouteShorthandOptions = {
+export const positionsSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],
     params: {
       type: "object",
       properties: {
-        account: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
-        market: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        marketAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
       },
-      required: ["account", "market"],
+      required: ["marketAddress"],
+    },
+    querystring: {
+      type: "object",
+      properties: {
+        pageSize: { type: "string" },
+        offset: { type: "string" },
+        userAddress: {
+          type: "string",
+          pattern: "^0x[a-fA-F0-9]{40}$",
+        },
+      },
     },
     response: {
       200: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            label: { type: "string" },
-            collatAmount: { type: "string" },
-            usgAmount: { type: "string" },
-            date: { type: "string", format: "date-time" },
-            txHash: { type: "string" },
+        type: "object",
+        properties: {
+          data: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                label: { type: "string" },
+                collatAmount: { type: "string" },
+                usgAmount: { type: "string" },
+                date: { type: "string", format: "date-time" },
+                txHash: { type: "string" },
+              },
+            },
           },
+          total: { type: "integer" },
         },
       },
       500: {

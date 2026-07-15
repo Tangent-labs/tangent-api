@@ -1,6 +1,6 @@
 import { AddressLike, isAddress } from "ethers"
 import { ProtocolMetricsRepository } from "../data/protocol_metrics.data.js"
-import { RawEvent, TransformedEvent } from "../types.js"
+import { PositionsRoute, RawEvent, TransformedEvent } from "../types.js"
 import { rangeToMinDate } from "../utils.js"
 
 export class ProtocolMetricsService {
@@ -100,8 +100,20 @@ export class ProtocolMetricsService {
     return await this.protocolMetricsRepo.getOraclePriceBuckets(market, startDate.toISOString(), endDate.toISOString(), bucketCount)
   }
 
-  async getEventsByAccount(account: string, market: string): Promise<RawEvent[]> {
-    return await this.protocolMetricsRepo.getEventsByAccount(account, market)
+  async getPositions(market: string, query: PositionsRoute["Querystring"]): Promise<{ data: TransformedEvent[]; total: number }> {
+    const MAX_PAGE_SIZE = 100
+
+    const parsedPageSize = Number.parseInt(query.pageSize ?? "", 10)
+    const pageSize = Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? Math.min(parsedPageSize, MAX_PAGE_SIZE) : 10
+
+    const parsedOffset = Number.parseInt(query.offset ?? "", 10)
+    const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0
+
+    const userAddress = query.userAddress ? query.userAddress.toLowerCase() : undefined
+
+    const { rows, total } = await this.protocolMetricsRepo.getPositions(market, { pageSize, offset, userAddress })
+
+    return { data: this.transformEvents(rows), total }
   }
 
   async getSUSGApy(from: number | null, to: number) {
