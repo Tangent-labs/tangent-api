@@ -307,7 +307,7 @@ export const getOracleMarketDataSchema: RouteShorthandOptions = {
       required: ["bucketCount", "bucketSizeMinutes"],
       properties: {
         dateEnd: { type: "string", format: "date-time" },
-        bucketCount: { type: "integer", minimum: 1, maximum: 200 },
+        bucketCount: { type: "integer", minimum: 1, maximum: 300 },
         bucketSizeMinutes: { type: "integer", minimum: 1, maximum: 10080 },
       },
     },
