@@ -265,7 +265,7 @@ export class PointsRepository {
       {
         taskId: 0,
         asset: "USG",
-        url: "https://tangent-dapp.vercel.app/",
+        url: "https://app.tangent.finance",
         protocol: "tangent",
         description: "Have some debt",
         pointRate: pointRate,
