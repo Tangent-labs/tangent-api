@@ -139,6 +139,41 @@ export const tvlSchema: RouteShorthandOptions = {
   },
 }
 
+export const revenuesSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    params: {
+      type: "object",
+      additionalProperties: false,
+      required: ["range"],
+      properties: {
+        range: { type: "string", enum: ["day", "week", "month"] },
+      },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            period: { type: "string" },
+            ir: { type: "number" },
+            reward: { type: "number" },
+            total: { type: "number" },
+          },
+          required: ["period", "ir", "reward", "total"],
+        },
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const totalSupplySchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

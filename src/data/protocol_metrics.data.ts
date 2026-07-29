@@ -495,6 +495,24 @@ export class ProtocolMetricsRepository {
     `
   }
 
+  async getRevenues(range: "day" | "week" | "month"): Promise<{ period: Date; ir: number; reward: number }[]> {
+    const rows = await this.prismaClient.$queryRaw<{ period: Date; ir: number; reward: number }[]>`
+      SELECT period, ir, reward FROM (
+        SELECT
+          date_trunc(${range}, day) AS period,
+          SUM(ir_revenue)::float8 AS ir,
+          SUM(rewards_revenue)::float8 AS reward
+        FROM global.daily_revenues
+        GROUP BY period
+        ORDER BY period DESC
+        LIMIT 12
+      ) recent
+      ORDER BY period ASC;
+    `
+
+    return rows
+  }
+
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
     return await this.prismaClient.$queryRaw<{ timestamp: Date; amount: number }[]>`
     WITH indicator AS (
