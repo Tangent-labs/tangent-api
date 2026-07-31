@@ -71,6 +71,12 @@ export interface ProtocolTvl {
   }
 }
 
+export interface RevenuesRoute {
+  Params: {
+    range: "day" | "week" | "month"
+  }
+}
+
 export interface sUSG {
   Params: {
     dateTo: number

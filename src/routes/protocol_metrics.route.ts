@@ -9,6 +9,7 @@ import {
   PriceHistoryRoute,
   PricesRoute,
   ProtocolTvl,
+  RevenuesRoute,
   sUSG,
   TotalSupply,
 } from "../types.js"
@@ -18,6 +19,7 @@ import {
   aprsSchema,
   priceHistorySchema,
   pricesSchema,
+  revenuesSchema,
   savingAccountsApySchema,
   activePositionsSchema,
   susgHistoricalDataSchema,
@@ -116,6 +118,18 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch prices" })
+    }
+  })
+
+  fastify.get<RevenuesRoute>("/revenues/:range", revenuesSchema, async (request, reply) => {
+    try {
+      const { range } = request.params
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getRevenues(range)
+      })
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch revenues" })
     }
   })
 

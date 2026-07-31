@@ -245,6 +245,37 @@ export class ProtocolMetricsService {
     }
   }
 
+  private formatRevenuePeriod(period: Date, range: "day" | "week" | "month"): string {
+    const monthDay = (date: Date) =>
+      new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(date)
+
+    if (range === "day") {
+      return monthDay(period)
+    }
+
+    if (range === "month") {
+      return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(period)
+    }
+
+    const periodEnd = new Date(period.getTime() + 6 * 24 * 60 * 60 * 1000)
+    return `${monthDay(period)} - ${monthDay(periodEnd)}`
+  }
+
+  async getRevenues(range: "day" | "week" | "month") {
+    try {
+      const rows = await this.protocolMetricsRepo.getRevenues(range)
+      return rows.map((row) => ({
+        period: this.formatRevenuePeriod(row.period, range),
+        ir: row.ir,
+        reward: row.reward,
+        total: row.ir + row.reward,
+      }))
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getSavingAccountsApy() {
     try {
       return await this.protocolMetricsRepo.getSavingAccountsApy()
