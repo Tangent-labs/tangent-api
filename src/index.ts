@@ -29,6 +29,9 @@ import { MonitoringService } from "./services/monitoring.service.js"
 import { registerMonitoringRoute } from "./routes/monitoring.route.js"
 import websocketPlugin from "./plugins/websocket.js"
 import monitoringWsPlugin from "./plugins/monitoring-ws.js"
+import { FeatureBannerRepository } from "./data/feature_banner.data.js"
+import { FeatureBannerService } from "./services/feature_banner.service.js"
+import { registerFeatureBannerRoutes } from "./routes/feature_banner.route.js"
 
 dotenv.config()
 
@@ -99,12 +102,16 @@ fastify.register(async (f) => {
   const monitoringRepository = new MonitoringRepository(f.prisma)
   const monitoringService = new MonitoringService(monitoringRepository)
 
+  const featureBannerRepository = new FeatureBannerRepository(f.prisma)
+  const featureBannerService = new FeatureBannerService(featureBannerRepository)
+
   fastify.register(registerPointsProgramRoutes, { pointsService })
   fastify.register(registerReferralRoute, { referralService })
   fastify.register(registerProtocolMetricsRoute, { protocolMetricsService })
   fastify.register(registerPredepositRoutes, { predepositService })
   fastify.register(registerUserRoute, { userService })
   fastify.register(registerMonitoringRoute, { monitoringService })
+  fastify.register(registerFeatureBannerRoutes, { featureBannerService })
   fastify.register(monitoringWsPlugin, { monitoringService })
 })
 
