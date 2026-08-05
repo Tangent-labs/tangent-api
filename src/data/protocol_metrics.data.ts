@@ -360,6 +360,11 @@ export class ProtocolMetricsRepository {
       return []
     }
 
+    // When fromISO is null the lower bound is unbounded, so no predicate is needed.
+    // Do NOT express this as COALESCE(${fromISO}, (SELECT MIN(...) ... WHERE tps2.token_address = tps.token_address)):
+    // that correlated subquery is re-executed for every candidate row, making the scan quadratic.
+    const fromFilter = fromISO ? Prisma.sql`AND pf.timestamp >= ${fromISO}::timestamptz` : Prisma.empty
+
     return await this.prismaClient.$queryRaw<TokenPriceHistoryPoint[]>`
       WITH input(address, ord) AS (
         VALUES ${Prisma.join(inputRows)}
@@ -380,16 +385,8 @@ export class ProtocolMetricsRepository {
         FROM points.price_feeds pf
         JOIN token_price_source tps ON tps.price_source_id = pf.price_source_id
         JOIN input i ON i.address = tps.token_address
-        WHERE pf.timestamp >= COALESCE(
-                ${fromISO}::timestamptz,
-                (
-                  SELECT MIN(pf2.timestamp)
-                  FROM points.price_feeds pf2
-                  JOIN token_price_source tps2 ON tps2.price_source_id = pf2.price_source_id
-                  WHERE tps2.token_address = tps.token_address
-                )
-              )
-          AND pf.timestamp <= ${toISO}::timestamptz
+        WHERE pf.timestamp <= ${toISO}::timestamptz
+          ${fromFilter}
       ),
       row_ratio AS (
         SELECT
@@ -514,6 +511,10 @@ export class ProtocolMetricsRepository {
   }
 
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
+    // Same rationale as getPriceHistory: an unbounded lower bound needs no predicate,
+    // and the correlated MIN() subquery it replaces was re-evaluated per row.
+    const fromFilter = fromISO ? Prisma.sql`AND giv.timestamp >= ${fromISO}::timestamptz` : Prisma.empty
+
     return await this.prismaClient.$queryRaw<{ timestamp: Date; amount: number }[]>`
     WITH indicator AS (
       SELECT id
@@ -527,11 +528,8 @@ export class ProtocolMetricsRepository {
         giv.value AS amount
       FROM global.global_indicators_values giv
       JOIN indicator i ON giv.global_indicator_id = i.id
-      WHERE giv.timestamp >= COALESCE(
-              ${fromISO}::timestamptz,
-              (SELECT MIN(timestamp) FROM global.global_indicators_values WHERE global_indicator_id = i.id)
-            )
-        AND giv.timestamp <= ${toISO}::timestamptz
+      WHERE giv.timestamp <= ${toISO}::timestamptz
+        ${fromFilter}
       ORDER BY giv.timestamp ASC
     ),
     row_ratio AS (
