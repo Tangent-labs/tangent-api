@@ -135,12 +135,11 @@ export class MonitoringRepository {
   async getOverviewPositions(warningMultiplier: number, liqdistWarningPct: number): Promise<OverviewRow> {
     const rows = await this.prismaClient.$queryRaw<OverviewRow[]>`
       WITH latest_positions AS (
-        SELECT ps.*, ROW_NUMBER() OVER (
-          PARTITION BY ps.market_id, ps.borrower_address
-          ORDER BY ps.snapshot_timestamp DESC
-        ) AS rn
-        FROM global.position_snapshots ps
-        WHERE ps.user_debt > 0
+      SELECT DISTINCT ON (market_id, borrower_address)
+              *
+        FROM global.position_snapshots
+        WHERE user_debt > 0
+        ORDER BY market_id, borrower_address, snapshot_timestamp DESC
       ),
       active AS (
         SELECT * FROM latest_positions WHERE rn = 1
