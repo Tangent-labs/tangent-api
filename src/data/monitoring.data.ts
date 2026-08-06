@@ -125,6 +125,11 @@ export interface BlockRow {
   created_at: Date | null
 }
 
+// position_snapshots is append-only and unbounded, so every "latest snapshot per position"
+// query must be anchored to the most recent snapshot batch instead of scanning all history.
+// Must stay comfortably above the position indexer interval.
+const SNAPSHOT_LOOKBACK = "6 hours"
+
 export class MonitoringRepository {
   prismaClient: PrismaClient
 
@@ -132,25 +137,36 @@ export class MonitoringRepository {
     this.prismaClient = prisma
   }
 
+  // Emits `bounds` + `latest_positions` CTEs holding the newest snapshot per (market, borrower).
+  // Callers must filter on user_debt > 0 themselves, downstream of the dedup: applying it here
+  // would resurrect the last debt-bearing snapshot of positions that have since been repaid.
+  private latestPositionsCte(extraFilters: Prisma.Sql = Prisma.sql``): Prisma.Sql {
+    return Prisma.sql`
+      bounds AS (
+        SELECT MAX(snapshot_timestamp) AS ts_max FROM global.position_snapshots
+      ),
+      latest_positions AS (
+        SELECT DISTINCT ON (ps.market_id, ps.borrower_address) ps.*
+        FROM global.position_snapshots ps, bounds b
+        WHERE ps.snapshot_timestamp >= b.ts_max - ${SNAPSHOT_LOOKBACK}::interval
+        ${extraFilters}
+        ORDER BY ps.market_id, ps.borrower_address, ps.snapshot_timestamp DESC
+      )
+    `
+  }
+
   async getOverviewPositions(warningMultiplier: number, liqdistWarningPct: number): Promise<OverviewRow> {
     const rows = await this.prismaClient.$queryRaw<OverviewRow[]>`
-    WITH latest_positions AS (
-      SELECT DISTINCT ON (market_id, borrower_address)
-            *
-      FROM global.position_snapshots
-      WHERE user_debt > 0
-      ORDER BY market_id, borrower_address, snapshot_timestamp DESC
-    ),
-    at_risk AS (
-      SELECT a.borrower_address 
-      FROM latest_positions a
-      JOIN global.market_config mc ON mc.market_id = a.market_id
-      WHERE a.cr < mc.liquidation_threshold * ${warningMultiplier}
-        OR a.distance_pct < ${liqdistWarningPct}
-    )
-    SELECT
-      (SELECT COUNT(*)::bigint FROM latest_positions) AS active_positions,
-      (SELECT COUNT(*)::bigint FROM at_risk) AS at_risk_positions
+      WITH ${this.latestPositionsCte()}
+      SELECT
+        COUNT(*)::bigint AS active_positions,
+        COUNT(*) FILTER (
+          WHERE lp.cr < mc.liquidation_threshold * ${warningMultiplier}
+             OR lp.distance_pct < ${liqdistWarningPct}
+        )::bigint AS at_risk_positions
+      FROM latest_positions lp
+      JOIN global.market_config mc ON mc.market_id = lp.market_id
+      WHERE lp.user_debt > 0
     `
     return rows[0] || { active_positions: BigInt(0), at_risk_positions: BigInt(0) }
   }
@@ -186,16 +202,7 @@ export class MonitoringRepository {
       : Prisma.sql``
 
     const rows = await this.prismaClient.$queryRaw<CollateralizationRow[]>`
-      WITH latest_positions AS (
-        SELECT ps.*, ROW_NUMBER() OVER (
-          PARTITION BY ps.market_id, ps.borrower_address
-          ORDER BY ps.snapshot_timestamp DESC
-        ) AS rn
-        FROM global.position_snapshots ps
-        WHERE ps.user_debt > 0
-        ${marketFilter}
-        ${borrowerFilter}
-      ),
+      WITH ${this.latestPositionsCte(Prisma.sql`${marketFilter} ${borrowerFilter}`)},
       with_status AS (
         SELECT
           lp.borrower_address,
@@ -217,7 +224,7 @@ export class MonitoringRepository {
         FROM latest_positions lp
         JOIN global.market_config mc ON mc.market_id = lp.market_id
         JOIN global.usg_markets um ON um.id = lp.market_id
-        WHERE lp.rn = 1
+        WHERE lp.user_debt > 0
         ${statusFilter}
       )
       SELECT * FROM with_status ws
@@ -249,16 +256,7 @@ export class MonitoringRepository {
       : Prisma.sql``
 
     const rows = await this.prismaClient.$queryRaw<LiquidationDistanceRow[]>`
-      WITH latest_positions AS (
-        SELECT ps.*, ROW_NUMBER() OVER (
-          PARTITION BY ps.market_id, ps.borrower_address
-          ORDER BY ps.snapshot_timestamp DESC
-        ) AS rn
-        FROM global.position_snapshots ps
-        WHERE ps.user_debt > 0
-        ${marketFilter}
-        ${borrowerFilter}
-      ),
+      WITH ${this.latestPositionsCte(Prisma.sql`${marketFilter} ${borrowerFilter}`)},
       with_status AS (
         SELECT
           lp.borrower_address,
@@ -279,7 +277,7 @@ export class MonitoringRepository {
         FROM latest_positions lp
         JOIN global.latest_global_data lgd ON lgd.market_id = lp.market_id
         JOIN global.usg_markets um ON um.id = lp.market_id
-        WHERE lp.rn = 1
+        WHERE lp.user_debt > 0
         ${statusFilter}
       )
       SELECT * FROM with_status ws
@@ -497,21 +495,13 @@ export class MonitoringRepository {
       : Prisma.sql``
 
     return await this.prismaClient.$queryRaw<LtvDistributionRow[]>`
-      WITH latest_positions AS (
-        SELECT ps.*, ROW_NUMBER() OVER (
-          PARTITION BY ps.market_id, ps.borrower_address
-          ORDER BY ps.snapshot_timestamp DESC
-        ) AS rn
-        FROM global.position_snapshots ps
-        WHERE ps.user_debt > 0
-        ${marketFilter}
-      ),
+      WITH ${this.latestPositionsCte(marketFilter)},
       with_ltv AS (
         SELECT
           lp.*,
           lp.ltv * 100 AS ltv_pct
         FROM latest_positions lp
-        WHERE lp.rn = 1
+        WHERE lp.user_debt > 0
       ),
       bucketed AS (
         SELECT
