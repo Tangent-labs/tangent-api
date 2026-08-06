@@ -134,27 +134,23 @@ export class MonitoringRepository {
 
   async getOverviewPositions(warningMultiplier: number, liqdistWarningPct: number): Promise<OverviewRow> {
     const rows = await this.prismaClient.$queryRaw<OverviewRow[]>`
-      WITH latest_positions AS (
+    WITH latest_positions AS (
       SELECT DISTINCT ON (market_id, borrower_address)
-              *
-        FROM global.position_snapshots
-        WHERE user_debt > 0
-        ORDER BY market_id, borrower_address, snapshot_timestamp DESC
-      ),
-      active AS (
-        SELECT * FROM latest_positions WHERE rn = 1
-      ),
-      at_risk AS (
-        SELECT a.borrower_address FROM active a
-        JOIN global.market_config mc ON mc.market_id = a.market_id
-        WHERE a.cr < mc.liquidation_threshold * ${warningMultiplier}
-        UNION
-        SELECT a.borrower_address FROM active a
-        WHERE a.distance_pct < ${liqdistWarningPct}
-      )
-      SELECT
-        (SELECT COUNT(*)::bigint FROM active) AS active_positions,
-        (SELECT COUNT(*)::bigint FROM at_risk) AS at_risk_positions
+            *
+      FROM global.position_snapshots
+      WHERE user_debt > 0
+      ORDER BY market_id, borrower_address, snapshot_timestamp DESC
+    ),
+    at_risk AS (
+      SELECT a.borrower_address 
+      FROM latest_positions a
+      JOIN global.market_config mc ON mc.market_id = a.market_id
+      WHERE a.cr < mc.liquidation_threshold * ${warningMultiplier}
+        OR a.distance_pct < ${liqdistWarningPct}
+    )
+    SELECT
+      (SELECT COUNT(*)::bigint FROM latest_positions) AS active_positions,
+      (SELECT COUNT(*)::bigint FROM at_risk) AS at_risk_positions
     `
     return rows[0] || { active_positions: BigInt(0), at_risk_positions: BigInt(0) }
   }
