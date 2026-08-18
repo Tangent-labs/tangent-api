@@ -263,13 +263,14 @@ export class ProtocolMetricsService {
 
   async getRevenues(range: "day" | "week" | "month") {
     try {
-      const rows = await this.protocolMetricsRepo.getRevenues(range)
-      return rows.map((row) => ({
+      const [rows, total] = await Promise.all([this.protocolMetricsRepo.getRevenues(range), this.protocolMetricsRepo.getTotalRevenue()])
+      const revenues = rows.map((row) => ({
         period: this.formatRevenuePeriod(row.period, range),
         ir: row.ir,
         reward: row.reward,
         total: row.ir + row.reward,
       }))
+      return { revenues, total }
     } catch (err) {
       console.log(err)
       throw err
