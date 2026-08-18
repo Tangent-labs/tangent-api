@@ -510,6 +510,21 @@ export class ProtocolMetricsRepository {
     return rows
   }
 
+  /**
+   * All-time protocol revenues (interest + rewards), independent of any bucketing.
+   * getRevenues() is capped to the 12 most recent buckets, so summing its rows client-side
+   * yields a different figure per range (12 days vs 12 weeks vs 12 months) — this is the
+   * single source of truth for the "Total" figure.
+   */
+  async getTotalRevenues(): Promise<number> {
+    const [row] = await this.prismaClient.$queryRaw<{ total: number | null }[]>`
+      SELECT (COALESCE(SUM(ir_revenue), 0) + COALESCE(SUM(rewards_revenue), 0))::float8 AS total
+      FROM global.daily_revenues;
+    `
+
+    return row?.total ?? 0
+  }
+
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
     // Same rationale as getPriceHistory: an unbounded lower bound needs no predicate,
     // and the correlated MIN() subquery it replaces was re-evaluated per row.

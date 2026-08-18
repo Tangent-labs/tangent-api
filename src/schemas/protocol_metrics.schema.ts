@@ -174,6 +174,28 @@ export const revenuesSchema: RouteShorthandOptions = {
   },
 }
 
+export const revenuesTotalSchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          // All-time revenues (interest + rewards), independent of any range
+          total: { type: "number" },
+        },
+        required: ["total"],
+      },
+      500: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+    },
+  },
+}
+
 export const totalSupplySchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

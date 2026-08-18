@@ -20,6 +20,7 @@ import {
   priceHistorySchema,
   pricesSchema,
   revenuesSchema,
+  revenuesTotalSchema,
   savingAccountsApySchema,
   activePositionsSchema,
   susgHistoricalDataSchema,
@@ -118,6 +119,18 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch prices" })
+    }
+  })
+
+  // Static route: takes precedence over "/revenues/:range" regardless of registration order
+  fastify.get("/revenues/total", revenuesTotalSchema, async (request, reply) => {
+    try {
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getTotalRevenues()
+      })
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch total revenues" })
     }
   })
 

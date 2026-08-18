@@ -276,6 +276,20 @@ export class ProtocolMetricsService {
     }
   }
 
+  /**
+   * All-time protocol revenues. Kept separate from getRevenues() (capped to 12 buckets)
+   * so the dashboard "Total" does not depend on the selected range.
+   */
+  async getTotalRevenues() {
+    try {
+      const total = await this.protocolMetricsRepo.getTotalRevenues()
+      return { total }
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getSavingAccountsApy() {
     try {
       return await this.protocolMetricsRepo.getSavingAccountsApy()
