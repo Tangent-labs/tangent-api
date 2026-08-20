@@ -510,6 +510,15 @@ export class ProtocolMetricsRepository {
     return rows
   }
 
+  async getTotalRevenue(): Promise<number> {
+    const [row] = await this.prismaClient.$queryRaw<{ total: number }[]>`
+      SELECT COALESCE(SUM(ir_revenue + rewards_revenue), 0)::float8 AS total
+      FROM global.daily_revenues;
+    `
+
+    return row?.total ?? 0
+  }
+
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
     // Same rationale as getPriceHistory: an unbounded lower bound needs no predicate,
     // and the correlated MIN() subquery it replaces was re-evaluated per row.

@@ -152,17 +152,24 @@ export const revenuesSchema: RouteShorthandOptions = {
     },
     response: {
       200: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            period: { type: "string" },
-            ir: { type: "number" },
-            reward: { type: "number" },
-            total: { type: "number" },
+        type: "object",
+        properties: {
+          revenues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                period: { type: "string" },
+                ir: { type: "number" },
+                reward: { type: "number" },
+                total: { type: "number" },
+              },
+              required: ["period", "ir", "reward", "total"],
+            },
           },
-          required: ["period", "ir", "reward", "total"],
+          total: { type: "number" },
         },
+        required: ["revenues", "total"],
       },
       500: {
         type: "object",
