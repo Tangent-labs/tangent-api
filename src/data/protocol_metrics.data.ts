@@ -519,6 +519,69 @@ export class ProtocolMetricsRepository {
     return row?.total ?? 0
   }
 
+  async getVolumes(range: "day" | "week" | "month"): Promise<
+    {
+      period: Date
+      collateral_in: number
+      collateral_out: number
+      debt_in: number
+      debt_out: number
+      lp_liquidity_in: number
+      lp_liquidity_out: number
+      lp_swap: number
+      susg_in: number
+      susg_out: number
+    }[]
+  > {
+    const rows = await this.prismaClient.$queryRaw<
+      {
+        period: Date
+        collateral_in: number
+        collateral_out: number
+        debt_in: number
+        debt_out: number
+        lp_liquidity_in: number
+        lp_liquidity_out: number
+        lp_swap: number
+        susg_in: number
+        susg_out: number
+      }[]
+    >`
+      SELECT period, collateral_in, collateral_out, debt_in, debt_out, lp_liquidity_in, lp_liquidity_out, lp_swap, susg_in, susg_out FROM (
+        SELECT
+          date_trunc(${range}, day) AS period,
+          SUM(collateral_in)::float8 AS collateral_in,
+          SUM(collateral_out)::float8 AS collateral_out,
+          SUM(debt_in)::float8 AS debt_in,
+          SUM(debt_out)::float8 AS debt_out,
+          SUM(lp_liquidity_in)::float8 AS lp_liquidity_in,
+          SUM(lp_liquidity_out)::float8 AS lp_liquidity_out,
+          SUM(lp_swap)::float8 AS lp_swap,
+          SUM(susg_in)::float8 AS susg_in,
+          SUM(susg_out)::float8 AS susg_out
+        FROM global.daily_volumes
+        GROUP BY period
+        ORDER BY period DESC
+        LIMIT 12
+      ) recent
+      ORDER BY period ASC;
+    `
+
+    return rows
+  }
+
+  async getTotalVolume(): Promise<number> {
+    const [row] = await this.prismaClient.$queryRaw<{ total: number }[]>`
+      SELECT COALESCE(SUM(
+        collateral_in + collateral_out + debt_in + debt_out +
+        lp_liquidity_in + lp_liquidity_out + lp_swap + susg_in + susg_out
+      ), 0)::float8 AS total
+      FROM global.daily_volumes;
+    `
+
+    return row?.total ?? 0
+  }
+
   async getSUSGApy(key: string, fromISO: string | null, toISO: string, targetPoints: number = 300): Promise<{ timestamp: Date; amount: number }[]> {
     // Same rationale as getPriceHistory: an unbounded lower bound needs no predicate,
     // and the correlated MIN() subquery it replaces was re-evaluated per row.

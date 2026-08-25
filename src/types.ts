@@ -77,6 +77,12 @@ export interface RevenuesRoute {
   }
 }
 
+export interface VolumesRoute {
+  Params: {
+    range: "day" | "week" | "month"
+  }
+}
+
 export interface sUSG {
   Params: {
     dateTo: number

@@ -277,6 +277,38 @@ export class ProtocolMetricsService {
     }
   }
 
+  async getVolumes(range: "day" | "week" | "month") {
+    try {
+      const [rows, total] = await Promise.all([this.protocolMetricsRepo.getVolumes(range), this.protocolMetricsRepo.getTotalVolume()])
+      const volumes = rows.map((row) => ({
+        period: this.formatRevenuePeriod(row.period, range),
+        collateralIn: row.collateral_in,
+        collateralOut: row.collateral_out,
+        debtIn: row.debt_in,
+        debtOut: row.debt_out,
+        lpLiquidityIn: row.lp_liquidity_in,
+        lpLiquidityOut: row.lp_liquidity_out,
+        lpSwap: row.lp_swap,
+        susgIn: row.susg_in,
+        susgOut: row.susg_out,
+        total:
+          row.collateral_in +
+          row.collateral_out +
+          row.debt_in +
+          row.debt_out +
+          row.lp_liquidity_in +
+          row.lp_liquidity_out +
+          row.lp_swap +
+          row.susg_in +
+          row.susg_out,
+      }))
+      return { volumes, total }
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getSavingAccountsApy() {
     try {
       return await this.protocolMetricsRepo.getSavingAccountsApy()
