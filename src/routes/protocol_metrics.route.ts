@@ -12,6 +12,7 @@ import {
   RevenuesRoute,
   sUSG,
   TotalSupply,
+  VolumesRoute,
 } from "../types.js"
 
 import {
@@ -27,6 +28,7 @@ import {
   getMarketHistoricalMarketDataSchema,
   getOracleMarketDataSchema,
   tvlSchema,
+  volumesSchema,
 } from "../schemas/protocol_metrics.schema.js"
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
@@ -130,6 +132,18 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch revenues" })
+    }
+  })
+
+  fastify.get<VolumesRoute>("/volumes/:range", volumesSchema, async (request, reply) => {
+    try {
+      const { range } = request.params
+      return await sendCached(request, reply, 120_000, async () => {
+        return await opts.protocolMetricsService.getVolumes(range)
+      })
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch volumes" })
     }
   })
 
