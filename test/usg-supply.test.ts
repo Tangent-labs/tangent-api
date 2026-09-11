@@ -82,4 +82,32 @@ describe("USG supply routes", () => {
 
     expect(res.statusCode).toBe(503)
   })
+
+  // CMC wants the bare number, not JSON.
+  it.each([
+    ["/usg/total-supply/plain", "1234567.89"],
+    ["/usg/circulating-supply/plain", "987654.321"],
+  ])("serves %s as a bare text/plain number", async (url, expected) => {
+    const res = await app.inject({ method: "GET", url })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/^text\/plain/)
+    expect(res.body).toBe(expected)
+  })
+
+  it("shares one cache entry between the JSON and plain variants", async () => {
+    await app.inject({ method: "GET", url: "/usg/total-supply" })
+    const res = await app.inject({ method: "GET", url: "/usg/total-supply/plain" })
+
+    expect(res.body).toBe("1234567.89")
+    expect(usgSupplyService.getTotalSupply).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns 503 on the plain variant when the RPC call fails", async () => {
+    vi.mocked(usgSupplyService.getTotalSupply).mockRejectedValueOnce(new Error("rpc down"))
+
+    const res = await app.inject({ method: "GET", url: "/usg/total-supply/plain" })
+
+    expect(res.statusCode).toBe(503)
+  })
 })

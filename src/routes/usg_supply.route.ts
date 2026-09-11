@@ -1,27 +1,17 @@
-import { FastifyInstance, FastifyReply, RouteShorthandOptions } from "fastify"
+import { FastifyInstance } from "fastify"
 
 import { UsgSupplyService } from "../services/usg_supply.service.js"
 
+import { usgTotalSupplySchema, usgTotalSupplyPlainSchema, usgCirculatingSupplySchema, usgCirculatingSupplyPlainSchema } from "../schemas/usg_supply.schema.js"
+
 const CACHE_TTL_MS = 300_000
 
-const supplySchema = (description: string): RouteShorthandOptions => ({
-  schema: {
-    tags: ["USG"],
-    description,
-    response: {
-      200: {
-        type: "object",
-        properties: { result: { type: "string" } },
-        required: ["result"],
-      },
-    },
-  },
-})
+const TOTAL_SUPPLY_KEY = "usg:total-supply"
+const CIRCULATING_SUPPLY_KEY = "usg:circulating-supply"
 
 export async function registerUsgSupplyRoute(fastify: FastifyInstance, opts: { usgSupplyService: UsgSupplyService }) {
 
-
-  async function sendCachedSupply(reply: FastifyReply, cacheKey: string, producer: () => Promise<string>) {
+  async function getCachedSupply(cacheKey: string, producer: () => Promise<string>): Promise<string> {
     let value = fastify.getLongCache<string>(cacheKey)
 
     if (value === undefined) {
@@ -29,12 +19,14 @@ export async function registerUsgSupplyRoute(fastify: FastifyInstance, opts: { u
       fastify.setLongCache(cacheKey, value, CACHE_TTL_MS)
     }
 
-    return reply.status(200).send({ result: value })
+    return value
   }
 
-  fastify.get("/usg/total-supply", supplySchema("USG total supply, decimal-adjusted."), async (_request, reply) => {
+  fastify.get("/usg/total-supply", usgTotalSupplySchema, async (_request, reply) => {
     try {
-      return await sendCachedSupply(reply, "usg:total-supply", () => opts.usgSupplyService.getTotalSupply())
+
+      const totalSupply = await getCachedSupply(TOTAL_SUPPLY_KEY, () => opts.usgSupplyService.getTotalSupply())
+      return reply.status(200).send({ result: totalSupply })
     } catch (err) {
       fastify.log.error(err)
       // A wrong or stale number is worse for a price aggregator than no number.
@@ -42,16 +34,33 @@ export async function registerUsgSupplyRoute(fastify: FastifyInstance, opts: { u
     }
   })
 
-  fastify.get(
-    "/usg/circulating-supply",
-    supplySchema("USG circulating supply (total supply minus pegkeeper balances), decimal-adjusted."),
-    async (_request, reply) => {
-      try {
-        return await sendCachedSupply(reply, "usg:circulating-supply", () => opts.usgSupplyService.getCirculatingSupply())
-      } catch (err) {
-        fastify.log.error(err)
-        return reply.status(503).send({ error: "Failed to fetch USG circulating supply" })
-      }
+  fastify.get("/usg/total-supply/plain", usgTotalSupplyPlainSchema, async (_request, reply) => {
+    try {
+      const totalSupply = await getCachedSupply(TOTAL_SUPPLY_KEY, () => opts.usgSupplyService.getTotalSupply())
+      return reply.type("text/plain").status(200).send(totalSupply)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(503).send({ error: "Failed to fetch USG total supply" })
     }
-  )
+  })
+
+  fastify.get("/usg/circulating-supply", usgCirculatingSupplySchema, async (_request, reply) => {
+    try {
+      const circulatingSupply = await getCachedSupply(CIRCULATING_SUPPLY_KEY, () => opts.usgSupplyService.getCirculatingSupply())
+      return reply.status(200).send({ result: circulatingSupply })
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(503).send({ error: "Failed to fetch USG circulating supply" })
+    }
+  })
+
+  fastify.get("/usg/circulating-supply/plain", usgCirculatingSupplyPlainSchema, async (_request, reply) => {
+    try {
+      const circulatingSupply = await getCachedSupply(CIRCULATING_SUPPLY_KEY, () => opts.usgSupplyService.getCirculatingSupply())
+      return reply.type("text/plain").status(200).send(circulatingSupply)
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(503).send({ error: "Failed to fetch USG circulating supply" })
+    }
+  })
 }
