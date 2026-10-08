@@ -426,31 +426,37 @@ export class ProtocolMetricsRepository {
     // Same rationale as getPriceHistory: no correlated MIN() when the lower bound is unbounded.
     const fromFilter = fromISO ? Prisma.sql`AND h.date >= ${fromISO}::timestamp` : Prisma.empty
 
-    return await this.prismaClient.$queryRaw<LiquidityHistoryPoint[]>`
-      WITH filtered AS (
+    // Downsample by time, not by row count: snapshot frequency changed (daily -> 15 min), so
+    // row-based sampling would crowd recent days. The window is split into targetPoints equal
+    // buckets and each LP keeps its last value per bucket (so the latest point, used for the total, is kept).
+    return await this.prismaClient.$queryRaw<LiquidityHistoryPoins[]>`
+      WITH bounds AS (
+        SELECT
+          start_ts,
+          GREATEST(EXTRACT(EPOCH FROM ${toISO}::timestamp - start_ts) / ${targetPoints}, 1) AS bucket_seconds
+        FROM (SELECT COALESCE(${fromISO}::timestamp, (SELECT MIN(date) FROM global.usg_lp_history)) AS start_ts) s
+      ),
+      filtered AS (
         SELECT
           h.usg_lp_id,
           k.lp_name AS "lpName",
           k.lp_address AS "lpAddress",
           h.date,
-          h.liquidity_usd AS "liquidityUsd"
+          h.liquidity_usd AS "liquidityUsd",
+          FLOOR(EXTRACT(EPOCH FROM h.date - b.start_ts) / b.bucket_seconds) AS bucket
         FROM global.usg_lp_history h
         JOIN predeposit.usg_lp_keys k ON k.id = h.usg_lp_id
+        CROSS JOIN bounds b
         WHERE h.date <= ${toISO}::timestamp
           ${fromFilter}
       ),
-      ranked AS (
-        SELECT
-          f.*,
-          ROW_NUMBER() OVER (PARTITION BY f.usg_lp_id ORDER BY f.date ASC) AS rn,
-          COUNT(*) OVER (PARTITION BY f.usg_lp_id) AS total_rows
-        FROM filtered f
+      last_per_bucket AS (
+        SELECT DISTINCT ON (usg_lp_id, bucket) "lpName", "lpAddress", date, "liquidityUsd"
+        FROM filtered
+        ORDER BY usg_lp_id, bucket, date DESC
       )
       SELECT "lpName", "lpAddress", date, "liquidityUsd"
-      FROM ranked
-      -- Always keep the latest point: the service derives the current total from it
-      WHERE (rn - 1) % GREATEST(CEIL(total_rows::numeric / ${targetPoints}::numeric), 1)::int = 0
-         OR rn = total_rows
+      FROM last_per_bucket
       ORDER BY "lpName" ASC, date ASC;
     `
   }
