@@ -181,6 +181,51 @@ export const revenuesSchema: RouteShorthandOptions = {
   },
 }
 
+export const liquidityHistorySchema: RouteShorthandOptions = {
+  schema: {
+    tags: ["Protocol metrics"],
+    params: {
+      type: "object",
+      additionalProperties: false,
+      required: ["range"],
+      properties: {
+        range: { type: "string", enum: ["1w", "1m", "1y", "all"] },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          total: { type: "number" },
+          lps: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                lpName: { type: "string" },
+                lpAddress: { type: "string" },
+                history: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      date: { type: "string", format: "date-time" },
+                      liquidityUsd: { type: "number" },
+                    },
+                    required: ["date", "liquidityUsd"],
+                  },
+                },
+              },
+              required: ["lpName", "lpAddress", "history"],
+            },
+          },
+        },
+        required: ["total", "lps"],
+      },
+    },
+  },
+}
+
 export const volumesSchema: RouteShorthandOptions = {
   schema: {
     tags: ["Protocol metrics"],

@@ -20,6 +20,13 @@ export type TokenPriceHistoryPoint = {
   amount: string
 }
 
+export type LiquidityHistoryPoint = {
+  lpName: string
+  lpAddress: string
+  date: Date
+  liquidityUsd: number
+}
+
 export type PriceSourceItem = {
   tokenAddress: string
   name: string
@@ -412,6 +419,39 @@ export class ProtocolMetricsRepository {
       JOIN row_ratio rr ON rr."tokenAddress" = r."tokenAddress"
       WHERE (r.rn - 1) % rr.ratio = 0
       ORDER BY r.ord ASC, r.timestamp ASC;
+    `
+  }
+
+  async getLiquidityHistory(fromISO: string | null, toISO: string, targetPoints: number): Promise<LiquidityHistoryPoint[]> {
+    // Same rationale as getPriceHistory: no correlated MIN() when the lower bound is unbounded.
+    const fromFilter = fromISO ? Prisma.sql`AND h.date >= ${fromISO}::timestamp` : Prisma.empty
+
+    return await this.prismaClient.$queryRaw<LiquidityHistoryPoint[]>`
+      WITH filtered AS (
+        SELECT
+          h.usg_lp_id,
+          k.lp_name AS "lpName",
+          k.lp_address AS "lpAddress",
+          h.date,
+          h.liquidity_usd AS "liquidityUsd"
+        FROM global.usg_lp_history h
+        JOIN predeposit.usg_lp_keys k ON k.id = h.usg_lp_id
+        WHERE h.date <= ${toISO}::timestamp
+          ${fromFilter}
+      ),
+      ranked AS (
+        SELECT
+          f.*,
+          ROW_NUMBER() OVER (PARTITION BY f.usg_lp_id ORDER BY f.date ASC) AS rn,
+          COUNT(*) OVER (PARTITION BY f.usg_lp_id) AS total_rows
+        FROM filtered f
+      )
+      SELECT "lpName", "lpAddress", date, "liquidityUsd"
+      FROM ranked
+      -- Always keep the latest point: the service derives the current total from it
+      WHERE (rn - 1) % GREATEST(CEIL(total_rows::numeric / ${targetPoints}::numeric), 1)::int = 0
+         OR rn = total_rows
+      ORDER BY "lpName" ASC, date ASC;
     `
   }
 

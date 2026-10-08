@@ -83,6 +83,12 @@ export interface VolumesRoute {
   }
 }
 
+export interface LiquidityHistoryRoute {
+  Params: {
+    range: "1w" | "1m" | "1y" | "all"
+  }
+}
+
 export interface sUSG {
   Params: {
     dateTo: number

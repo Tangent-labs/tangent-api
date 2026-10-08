@@ -6,6 +6,7 @@ import {
   PositionsRoute,
   GetHistoricalMarketDataRoute,
   GetOracleMarketDataRoute,
+  LiquidityHistoryRoute,
   PriceHistoryRoute,
   PricesRoute,
   ProtocolTvl,
@@ -27,9 +28,12 @@ import {
   positionsSchema,
   getMarketHistoricalMarketDataSchema,
   getOracleMarketDataSchema,
+  liquidityHistorySchema,
   tvlSchema,
   volumesSchema,
 } from "../schemas/protocol_metrics.schema.js"
+
+const CACHE_DURATION = 300_000
 
 export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opts: { protocolMetricsService: ProtocolMetricsService }) {
   async function sendCached<T>(
@@ -81,7 +85,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/aprs", aprsSchema, async (request, reply) => {
     try {
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getLastMarketAprs()
       })
     } catch (err) {
@@ -92,7 +96,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
 
   fastify.get("/savingAccounts/apy", savingAccountsApySchema, async (request, reply) => {
     try {
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getSavingAccountsApy()
       })
     } catch (err) {
@@ -114,7 +118,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
   fastify.get<PricesRoute>("/prices/:tokenAddresses", pricesSchema, async (request, reply) => {
     try {
       const { tokenAddresses } = request.params
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getLatestPrices(tokenAddresses.split(","))
       })
     } catch (err) {
@@ -126,7 +130,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
   fastify.get<RevenuesRoute>("/revenues/:range", revenuesSchema, async (request, reply) => {
     try {
       const { range } = request.params
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getRevenues(range)
       })
     } catch (err) {
@@ -138,12 +142,24 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
   fastify.get<VolumesRoute>("/volumes/:range", volumesSchema, async (request, reply) => {
     try {
       const { range } = request.params
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getVolumes(range)
       })
     } catch (err) {
       fastify.log.error(err)
       return reply.status(500).send({ error: "Failed to fetch volumes" })
+    }
+  })
+
+  fastify.get<LiquidityHistoryRoute>("/liquidity/:range", liquidityHistorySchema, async (request, reply) => {
+    try {
+      const { range } = request.params
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
+        return await opts.protocolMetricsService.getLiquidityHistory(range)
+      })
+    } catch (err) {
+      fastify.log.error(err)
+      return reply.status(500).send({ error: "Failed to fetch liquidity history" })
     }
   })
 
@@ -165,7 +181,7 @@ export async function registerProtocolMetricsRoute(fastify: FastifyInstance, opt
     try {
       const { tokenAddresses } = request.params
       const { range } = request.query
-      return await sendCached(request, reply, 120_000, async () => {
+      return await sendCached(request, reply, CACHE_DURATION, async () => {
         return await opts.protocolMetricsService.getPriceHistoryByRange(tokenAddresses.split(","), range)
       })
     } catch (err) {
