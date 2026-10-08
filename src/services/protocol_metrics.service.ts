@@ -206,6 +206,33 @@ export class ProtocolMetricsService {
     }
   }
 
+  async getLiquidityHistory(range: "1w" | "1m" | "1y" | "all") {
+    const TARGET_POINTS = 200
+    const now = new Date().toISOString()
+    const dateFrom = range === "all" ? null : rangeToMinDate(range, now)
+
+    try {
+      const rows = await this.protocolMetricsRepo.getLiquidityHistory(dateFrom, now, TARGET_POINTS)
+      const grouped = new Map<string, { lpName: string; lpAddress: string; history: { date: Date; liquidityUsd: number }[] }>()
+
+      for (const row of rows) {
+        if (!grouped.has(row.lpAddress)) {
+          grouped.set(row.lpAddress, { lpName: row.lpName, lpAddress: row.lpAddress, history: [] })
+        }
+        grouped.get(row.lpAddress)!.history.push({ date: row.date, liquidityUsd: row.liquidityUsd })
+      }
+
+      const lps = [...grouped.values()]
+      // Snapshot timestamps differ across LPs, so the total is the sum of each LP's latest value, not a series
+      const total = lps.reduce((sum, lp) => sum + lp.history[lp.history.length - 1].liquidityUsd, 0)
+
+      return { total, lps }
+    } catch (err) {
+      console.log(err)
+      throw err
+    }
+  }
+
   async getTotalValueLocked(from: number | null, to: number) {
     const TARGET_POINTS = 200
 

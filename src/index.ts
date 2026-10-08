@@ -1,6 +1,5 @@
 import dotenv from "dotenv"
 import fastifyCors from "@fastify/cors"
-import Postgres from "@fastify/postgres"
 import swagger from "@fastify/swagger"
 import swaggerUI from "@fastify/swagger-ui"
 import rateLimit from "@fastify/rate-limit"
@@ -70,10 +69,6 @@ fastify.register(swaggerUI, {
     docExpansion: "list", // optional UI settings
     deepLinking: true,
   },
-})
-
-fastify.register(Postgres, {
-  connectionString: process.env.DATABASE_URL,
 })
 
 fastify.register(fastifyCors, {
