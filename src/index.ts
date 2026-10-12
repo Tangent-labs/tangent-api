@@ -48,7 +48,9 @@ fastify.register(cachePlugin)
 fastify.register(websocketPlugin)
 fastify.register(rateLimit, {
   max: 100, // max requests
-  timeWindow: "1 minute", // per IP per time window
+  timeWindow: "1 minute",
+  // Behind Cloudflare req.ip is Cloudflare's IP, so without this every user shares one bucket. cf-connecting-ip is the real client IP.
+  keyGenerator: (req) => (req.headers["cf-connecting-ip"] as string) ?? req.ip,
 })
 
 // Generate OpenAPI spec
